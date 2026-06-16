@@ -2,45 +2,50 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GenerateRequest, GenerateResponse } from '@/types';
 import { buildSystemPrompt, buildGeneratePrompt } from './prompts';
 
-// 모델 우선순위: 최신 별칭 → 특정 버전 순서로 폴백
-const MODEL_CANDIDATES = [
-  'claude-sonnet-4-latest',
-  'claude-sonnet-4-20250514',
-];
+// 캐시된 최신 Sonnet 모델 ID (서버 재시작 시마다 갱신)
+let cachedSonnetModel: string | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL = 1000 * 60 * 60; // 1시간
 
-function getModelCandidates(): string[] {
-  const envModel = process.env.CLAUDE_MODEL;
-  if (envModel) {
-    // 환경변수로 지정한 모델을 최우선으로, 나머지는 폴백
-    return [envModel, ...MODEL_CANDIDATES.filter(m => m !== envModel)];
+async function getLatestSonnetModel(apiKey: string): Promise<string> {
+  // 환경변수로 지정한 모델이 있으면 최우선
+  if (process.env.CLAUDE_MODEL) {
+    return process.env.CLAUDE_MODEL;
   }
-  return MODEL_CANDIDATES;
-}
 
-async function createMessageWithFallback(
-  client: Anthropic,
-  params: Omit<Anthropic.MessageCreateParams, 'model' | 'stream'>
-): Promise<Anthropic.Message> {
-  const models = getModelCandidates();
-  let lastError: Error | null = null;
+  // 캐시가 유효하면 재사용
+  if (cachedSonnetModel && Date.now() - cacheTimestamp < CACHE_TTL) {
+    return cachedSonnetModel;
+  }
 
-  for (const model of models) {
-    try {
-      return await client.messages.create({ ...params, model, stream: false });
-    } catch (error: unknown) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      // 모델을 찾을 수 없거나 지원하지 않는 경우에만 다음 모델 시도
-      // 그 외 오류(인증, 요금 등)는 즉시 throw
-      const status = (error as { status?: number }).status;
-      if (status === 404 || status === 400) {
-        console.warn(`모델 ${model} 사용 불가, 다음 모델로 폴백 시도...`);
-        continue;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/models', {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+    });
+    if (res.ok) {
+      const body = await res.json() as { data: { id: string; created_at: string }[] };
+      // sonnet 모델 중 가장 최신 것 선택
+      const sonnetModels = body.data
+        .filter((m: { id: string }) => m.id.includes('sonnet'))
+        .sort((a: { created_at: string }, b: { created_at: string }) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      if (sonnetModels.length > 0) {
+        cachedSonnetModel = sonnetModels[0].id;
+        cacheTimestamp = Date.now();
+        console.log(`최신 Sonnet 모델 감지: ${cachedSonnetModel}`);
+        return cachedSonnetModel;
       }
-      throw lastError;
     }
+  } catch (err) {
+    console.warn('모델 목록 조회 실패, 폴백 모델 사용:', err);
   }
 
-  throw lastError || new Error('사용 가능한 모델이 없습니다.');
+  // API 조회 실패 시 폴백
+  return 'claude-sonnet-4-6';
 }
 
 export async function generateBlogPost(
@@ -57,8 +62,12 @@ export async function generateBlogPost(
   const systemPrompt = buildSystemPrompt(domain);
   const userPrompt = buildGeneratePrompt(request);
 
-  const message = await createMessageWithFallback(client, {
+  const model = await getLatestSonnetModel(apiKey);
+
+  const message = await client.messages.create({
+    model,
     max_tokens: 16000,
+    stream: false,
     system: systemPrompt + '\n\n중요: 반드시 JSON 코드블록(```json ... ```)으로 응답하세요. JSON 외의 텍스트는 출력하지 마세요.',
     messages: [{ role: 'user', content: userPrompt }],
   });
