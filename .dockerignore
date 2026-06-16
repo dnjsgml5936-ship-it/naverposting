@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+data/*.db
+selenium/venv
+selenium/__pycache__
+*.pyc
+.env*
