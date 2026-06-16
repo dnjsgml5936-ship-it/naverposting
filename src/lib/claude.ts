@@ -19,14 +19,14 @@ function getModelCandidates(): string[] {
 
 async function createMessageWithFallback(
   client: Anthropic,
-  params: Omit<Anthropic.MessageCreateParams, 'model'>
+  params: Omit<Anthropic.MessageCreateParams, 'model' | 'stream'>
 ): Promise<Anthropic.Message> {
   const models = getModelCandidates();
   let lastError: Error | null = null;
 
   for (const model of models) {
     try {
-      return await client.messages.create({ ...params, model });
+      return await client.messages.create({ ...params, model, stream: false });
     } catch (error: unknown) {
       lastError = error instanceof Error ? error : new Error(String(error));
       // 모델을 찾을 수 없거나 지원하지 않는 경우에만 다음 모델 시도
