@@ -13,21 +13,14 @@ const DOMAIN_BRANDING: Record<PostDomain, { label: string; color: string }> = {
   bizinfo: { label: '기업지원 전문 컨설턴트', color: '#f59e0b' },
 };
 
-const ACCENT_COLORS: Record<string, string> = {
-  blue: '#3b82f6',
-  green: '#22c55e',
-  purple: '#a855f7',
-  orange: '#f97316',
-  teal: '#14b8a6',
-};
+const SIZE = 1080; // 1:1 정사각형
 
-// Pollinations.ai 무료 AI 이미지 생성 URL
-function getAiImageUrl(prompt: string, width = 1200, height = 675): string {
+// Pollinations.ai 무료 AI 이미지 생성 URL (1:1 비율)
+function getAiImageUrl(prompt: string): string {
   const encoded = encodeURIComponent(prompt);
-  return `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
+  return `https://image.pollinations.ai/prompt/${encoded}?width=${SIZE}&height=${SIZE}&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
 }
 
-// 이미지를 비동기로 로드
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -38,7 +31,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// 캐시된 이미지 저장소
 const imageCache = new Map<string, HTMLImageElement>();
 
 async function loadCachedImage(prompt: string): Promise<HTMLImageElement> {
@@ -51,266 +43,117 @@ async function loadCachedImage(prompt: string): Promise<HTMLImageElement> {
   return img;
 }
 
-// === 핵심 드로잉: AI 이미지 배경 + 텍스트 오버레이 ===
+// === 핵심 드로잉: AI 이미지 + 가운데 텍스트만 ===
 async function drawCardWithAiImage(
   canvas: HTMLCanvasElement,
   card: ImageCard,
-  blogTitle: string,
-  index: number,
-  domain: PostDomain = 'insurance'
 ): Promise<void> {
   const ctx = canvas.getContext('2d')!;
-  const W = 1200;
-  const H = 675;
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = SIZE;
+  canvas.height = SIZE;
 
-  const accent = ACCENT_COLORS[card.theme] || ACCENT_COLORS.blue;
-  const branding = DOMAIN_BRANDING[domain] || DOMAIN_BRANDING.insurance;
   const overlayText = card.overlayText || card.title;
 
-  // 1) AI 생성 배경 이미지 로드
+  // 1) AI 배경 이미지 (원본 비율 그대로, 1:1로 요청)
   let bgLoaded = false;
   if (card.imagePrompt) {
     try {
       const img = await loadCachedImage(card.imagePrompt);
-      // 이미지를 캔버스에 cover 방식으로 그리기
-      const scale = Math.max(W / img.width, H / img.height);
-      const sw = W / scale;
-      const sh = H / scale;
-      const sx = (img.width - sw) / 2;
-      const sy = (img.height - sh) / 2;
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+      ctx.drawImage(img, 0, 0, SIZE, SIZE);
       bgLoaded = true;
     } catch {
-      // 이미지 로드 실패 시 폴백 그라데이션
+      // 폴백
     }
   }
 
-  // 이미지 로드 실패 시 폴백 그라데이션 배경
   if (!bgLoaded) {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
     grad.addColorStop(0, '#0f172a');
     grad.addColorStop(0.5, '#1e293b');
     grad.addColorStop(1, '#0f172a');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, SIZE, SIZE);
   }
 
-  // 2) 어두운 그라데이션 오버레이 (텍스트 가독성 확보)
-  // 하단에서 상단으로 점점 진해지는 오버레이
-  const overlayGrad = ctx.createLinearGradient(0, 0, 0, H);
-  overlayGrad.addColorStop(0, 'rgba(0,0,0,0.25)');
-  overlayGrad.addColorStop(0.3, 'rgba(0,0,0,0.35)');
-  overlayGrad.addColorStop(0.6, 'rgba(0,0,0,0.50)');
-  overlayGrad.addColorStop(1, 'rgba(0,0,0,0.70)');
-  ctx.fillStyle = overlayGrad;
-  ctx.fillRect(0, 0, W, H);
+  // 2) 텍스트 영역 반투명 오버레이 (가운데 밴드)
+  const bandY = SIZE * 0.35;
+  const bandH = SIZE * 0.30;
+  const bandGrad = ctx.createLinearGradient(0, bandY - 40, 0, bandY + bandH + 40);
+  bandGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  bandGrad.addColorStop(0.12, 'rgba(0,0,0,0.5)');
+  bandGrad.addColorStop(0.5, 'rgba(0,0,0,0.6)');
+  bandGrad.addColorStop(0.88, 'rgba(0,0,0,0.5)');
+  bandGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = bandGrad;
+  ctx.fillRect(0, bandY - 40, SIZE, bandH + 80);
 
-  // 3) 상단 악센트 바
-  const topBar = ctx.createLinearGradient(0, 0, W, 0);
-  topBar.addColorStop(0, accent);
-  topBar.addColorStop(0.5, accent + 'cc');
-  topBar.addColorStop(1, accent);
-  ctx.fillStyle = topBar;
-  ctx.fillRect(0, 0, W, 5);
-
-  // 4) 카드 번호 뱃지 (좌측 상단)
-  ctx.beginPath();
-  ctx.arc(60, 50, 24, 0, Math.PI * 2);
-  ctx.fillStyle = accent;
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${index + 1}`, 60, 51);
-
-  // 5) 이모지 (우측 상단)
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.font = '48px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-  ctx.fillText(card.emoji, W - 40, 22);
-
-  // 6) 메인 오버레이 텍스트 (가독성 높은 큰 글씨, 한 문장)
+  // 3) 가운데 텍스트
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // 텍스트 배경 영역 (반투명 블러 효과 시뮬레이션)
-  const textAreaY = H * 0.32;
-  const textAreaH = H * 0.38;
-  const textBgGrad = ctx.createLinearGradient(0, textAreaY - 20, 0, textAreaY + textAreaH + 20);
-  textBgGrad.addColorStop(0, 'rgba(0,0,0,0)');
-  textBgGrad.addColorStop(0.15, 'rgba(0,0,0,0.45)');
-  textBgGrad.addColorStop(0.5, 'rgba(0,0,0,0.55)');
-  textBgGrad.addColorStop(0.85, 'rgba(0,0,0,0.45)');
-  textBgGrad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = textBgGrad;
-  ctx.fillRect(0, textAreaY - 20, W, textAreaH + 40);
-
-  // 메인 텍스트 렌더링 (큰 폰트, 가독성 최우선)
-  const fontSize = calculateFontSize(ctx, overlayText, W - 160, 54, 36);
+  const fontSize = calculateFontSize(ctx, overlayText, SIZE - 140, 52, 34);
   ctx.font = `bold ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif`;
 
-  // 텍스트 그림자 (가독성 강화)
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
-  ctx.shadowBlur = 15;
+  ctx.shadowBlur = 12;
   ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 3;
+  ctx.shadowOffsetY = 2;
 
-  // 줄바꿈 처리
-  const lines = wrapTextCenter(ctx, overlayText, W - 160);
-  const lineHeight = fontSize * 1.35;
-  const totalTextHeight = lines.length * lineHeight;
-  const startY = H * 0.5 - totalTextHeight / 2 + lineHeight / 2;
+  const lines = wrapTextCenter(ctx, overlayText, SIZE - 140);
+  const lineHeight = fontSize * 1.4;
+  const totalH = lines.length * lineHeight;
+  const startY = SIZE / 2 - totalH / 2 + lineHeight / 2;
 
   ctx.fillStyle = '#ffffff';
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], W / 2, startY + i * lineHeight);
+    ctx.fillText(lines[i], SIZE / 2, startY + i * lineHeight);
   }
 
-  // 그림자 리셋
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-
-  // 7) 악센트 언더라인 (텍스트 아래)
-  const underlineY = startY + (lines.length - 1) * lineHeight + lineHeight * 0.6;
-  const underlineW = 120;
-  ctx.fillStyle = accent;
-  roundRect(ctx, W / 2 - underlineW / 2, underlineY, underlineW, 4, 2);
-  ctx.fill();
-
-  // 8) 하단 정보 바
-  const bottomH = 50;
-  const bottomGrad = ctx.createLinearGradient(0, H - bottomH, 0, H);
-  bottomGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
-  bottomGrad.addColorStop(1, 'rgba(0,0,0,0.85)');
-  ctx.fillStyle = bottomGrad;
-  ctx.fillRect(0, H - bottomH, W, bottomH);
-
-  // 상단 라인
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, H - bottomH, W, 2);
-
-  // 블로그 제목 (좌측)
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = '15px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  const brandText = blogTitle.length > 40 ? blogTitle.substring(0, 40) + '...' : blogTitle;
-  ctx.fillText(brandText, 24, H - bottomH / 2);
-
-  // 도메인 브랜딩 (우측)
-  ctx.textAlign = 'right';
-  ctx.fillStyle = branding.color;
-  ctx.font = 'bold 15px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  ctx.fillText(branding.label, W - 24, H - bottomH / 2);
 }
 
-// 폴백용 동기 드로잉 (이미지 없이 그라데이션 배경)
+// 폴백 (이미지 없이)
 function drawCardFallback(
   canvas: HTMLCanvasElement,
   card: ImageCard,
-  blogTitle: string,
-  index: number,
-  domain: PostDomain = 'insurance'
 ) {
   const ctx = canvas.getContext('2d')!;
-  const W = 1200;
-  const H = 675;
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = SIZE;
+  canvas.height = SIZE;
 
-  const accent = ACCENT_COLORS[card.theme] || ACCENT_COLORS.blue;
-  const branding = DOMAIN_BRANDING[domain] || DOMAIN_BRANDING.insurance;
   const overlayText = card.overlayText || card.title;
 
-  // 그라데이션 배경
-  const grad = ctx.createLinearGradient(0, 0, W, H);
+  const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
   grad.addColorStop(0, '#0f172a');
   grad.addColorStop(0.5, '#1e293b');
   grad.addColorStop(1, '#0f172a');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, SIZE, SIZE);
 
-  // 장식 글로우
-  const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 400);
-  glow.addColorStop(0, accent + '20');
-  glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-
-  // 상단 바
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, W, 5);
-
-  // 카드 번호
-  ctx.beginPath();
-  ctx.arc(60, 50, 24, 0, Math.PI * 2);
-  ctx.fillStyle = accent;
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${index + 1}`, 60, 51);
 
-  // 이모지
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.font = '48px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-  ctx.fillText(card.emoji, W - 40, 22);
-
-  // 메인 텍스트
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const fontSize = calculateFontSize(ctx, overlayText, W - 160, 54, 36);
+  const fontSize = calculateFontSize(ctx, overlayText, SIZE - 140, 52, 34);
   ctx.font = `bold ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", sans-serif`;
 
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = 10;
 
-  const lines = wrapTextCenter(ctx, overlayText, W - 160);
-  const lineHeight = fontSize * 1.35;
-  const totalTextHeight = lines.length * lineHeight;
-  const startY = H * 0.5 - totalTextHeight / 2 + lineHeight / 2;
+  const lines = wrapTextCenter(ctx, overlayText, SIZE - 140);
+  const lineHeight = fontSize * 1.4;
+  const totalH = lines.length * lineHeight;
+  const startY = SIZE / 2 - totalH / 2 + lineHeight / 2;
 
   ctx.fillStyle = '#ffffff';
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], W / 2, startY + i * lineHeight);
+    ctx.fillText(lines[i], SIZE / 2, startY + i * lineHeight);
   }
 
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
-
-  // 언더라인
-  const underlineY = startY + (lines.length - 1) * lineHeight + lineHeight * 0.6;
-  ctx.fillStyle = accent;
-  roundRect(ctx, W / 2 - 60, underlineY, 120, 4, 2);
-  ctx.fill();
-
-  // 하단 바
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.fillRect(0, H - 50, W, 50);
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, H - 50, W, 2);
-
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = '15px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  const brandText = blogTitle.length > 40 ? blogTitle.substring(0, 40) + '...' : blogTitle;
-  ctx.fillText(brandText, 24, H - 25);
-
-  ctx.textAlign = 'right';
-  ctx.fillStyle = branding.color;
-  ctx.font = 'bold 15px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  ctx.fillText(branding.label, W - 24, H - 25);
 }
 
-// 텍스트 크기 자동 계산 (최대 maxSize, 최소 minSize)
 function calculateFontSize(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -326,11 +169,9 @@ function calculateFontSize(
   return minSize;
 }
 
-// 중앙 정렬용 텍스트 줄바꿈
 function wrapTextCenter(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let line = '';
-
   for (const char of text) {
     const testLine = line + char;
     if (ctx.measureText(testLine).width > maxWidth && line.length > 0) {
@@ -344,96 +185,66 @@ function wrapTextCenter(ctx: CanvasRenderingContext2D, text: string, maxWidth: n
   return lines;
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// === 타이틀/아웃로 슬라이드 ===
+// === 타이틀/아웃로 슬라이드 (영상용) ===
 function drawTitleSlide(
-  ctx: CanvasRenderingContext2D, W: number, H: number, title: string,
+  ctx: CanvasRenderingContext2D, S: number, title: string,
   branding: { label: string; color: string }
 ) {
-  const grad = ctx.createLinearGradient(0, 0, W, H);
+  const grad = ctx.createLinearGradient(0, 0, S, S);
   grad.addColorStop(0, '#0c1929');
   grad.addColorStop(0.5, '#1a3a5c');
   grad.addColorStop(1, '#0c1929');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, S, S);
 
-  const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 350);
+  const glow = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, 350);
   glow.addColorStop(0, 'rgba(59,130,246,0.15)');
   glow.addColorStop(1, 'transparent');
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-
-  const topBar = ctx.createLinearGradient(0, 0, W, 0);
-  topBar.addColorStop(0, 'transparent');
-  topBar.addColorStop(0.5, branding.color);
-  topBar.addColorStop(1, 'transparent');
-  ctx.fillStyle = topBar;
-  ctx.fillRect(0, 0, W, 4);
+  ctx.fillRect(0, 0, S, S);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 46px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+  ctx.font = 'bold 44px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const lines = wrapTextCenter(ctx, title, 800);
+  const lines = wrapTextCenter(ctx, title, S - 160);
   const lineHeight = 56;
-  const startY = H / 2 - 30 - ((lines.length - 1) * lineHeight) / 2;
+  const startY = S / 2 - 30 - ((lines.length - 1) * lineHeight) / 2;
   for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], W / 2, startY + i * lineHeight);
+    ctx.fillText(lines[i], S / 2, startY + i * lineHeight);
   }
 
   ctx.fillStyle = branding.color;
   ctx.font = 'bold 24px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  ctx.fillText(branding.label, W / 2, startY + lines.length * lineHeight + 30);
+  ctx.fillText(branding.label, S / 2, startY + lines.length * lineHeight + 30);
   ctx.textAlign = 'left';
 }
 
 function drawOutroSlide(
-  ctx: CanvasRenderingContext2D, W: number, H: number,
+  ctx: CanvasRenderingContext2D, S: number,
   branding: { label: string; color: string }
 ) {
-  const grad = ctx.createLinearGradient(0, 0, W, H);
+  const grad = ctx.createLinearGradient(0, 0, S, S);
   grad.addColorStop(0, '#0c1929');
   grad.addColorStop(1, '#1a3a5c');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 300);
-  glow.addColorStop(0, 'rgba(59,130,246,0.12)');
-  glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, S, S);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 44px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  ctx.fillText('무료 상담 신청하세요', W / 2, H / 2 - 20);
+  ctx.fillText('무료 상담 신청하세요', S / 2, S / 2 - 20);
 
   ctx.fillStyle = branding.color;
   ctx.font = '28px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-  ctx.fillText(`${branding.label}가 1:1로 상담해드립니다`, W / 2, H / 2 + 40);
+  ctx.fillText(`${branding.label}가 1:1로 상담해드립니다`, S / 2, S / 2 + 40);
   ctx.textAlign = 'left';
 }
 
@@ -449,20 +260,18 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
   const [previews, setPreviews] = useState<string[]>([]);
   const [loadingStates, setLoadingStates] = useState<boolean[]>([]);
 
-  // 카드가 변경되면 프리뷰 이미지 생성
   useEffect(() => {
     if (!cards.length) return;
 
-    const initialLoading = cards.map(() => true);
-    setLoadingStates(initialLoading);
+    setLoadingStates(cards.map(() => true));
     setPreviews(cards.map(() => ''));
 
     cards.forEach(async (card, i) => {
       const offscreen = document.createElement('canvas');
       try {
-        await drawCardWithAiImage(offscreen, card, blogTitle, i, domain);
+        await drawCardWithAiImage(offscreen, card);
       } catch {
-        drawCardFallback(offscreen, card, blogTitle, i, domain);
+        drawCardFallback(offscreen, card);
       }
       const dataUrl = offscreen.toDataURL('image/png');
 
@@ -484,16 +293,16 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
       const canvas = canvasRef.current;
       if (!canvas) return;
       try {
-        await drawCardWithAiImage(canvas, card, blogTitle, index, domain);
+        await drawCardWithAiImage(canvas, card);
       } catch {
-        drawCardFallback(canvas, card, blogTitle, index, domain);
+        drawCardFallback(canvas, card);
       }
       const link = document.createElement('a');
       link.download = `blog-image-${index + 1}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     },
-    [blogTitle, domain]
+    []
   );
 
   const downloadAllImages = useCallback(async () => {
@@ -505,12 +314,12 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
 
   const generateVideo = useCallback(async () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1200;
-    canvas.height = 675;
+    canvas.width = SIZE;
+    canvas.height = SIZE;
     canvas.style.position = 'fixed';
     canvas.style.top = '50%';
     canvas.style.left = '50%';
-    canvas.style.transform = 'translate(-50%, -50%) scale(0.5)';
+    canvas.style.transform = 'translate(-50%, -50%) scale(0.45)';
     canvas.style.zIndex = '9999';
     canvas.style.borderRadius = '12px';
     canvas.style.boxShadow = '0 25px 50px rgba(0,0,0,0.5)';
@@ -525,27 +334,16 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
     const stream = (canvas as any).captureStream(30);
 
     let mimeType = 'video/webm;codecs=vp9';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm;codecs=vp8';
-    }
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm';
-    }
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
 
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 5000000,
-    });
-
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5000000 });
     const chunks: Blob[] = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
     recorder.onstop = () => {
       canvas.remove();
       overlay.remove();
-
       const blob = new Blob(chunks, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -556,45 +354,36 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
     };
 
     recorder.start();
-
     const ctx = canvas.getContext('2d')!;
     const branding = DOMAIN_BRANDING[domain] || DOMAIN_BRANDING.insurance;
 
-    // 타이틀 슬라이드
-    drawTitleSlide(ctx, canvas.width, canvas.height, blogTitle, branding);
+    drawTitleSlide(ctx, SIZE, blogTitle, branding);
     await sleep(2500);
 
-    // 각 카드 슬라이드
     for (let i = 0; i < cards.length; i++) {
-      // 페이드 아웃
       for (let alpha = 1; alpha >= 0; alpha -= 0.05) {
         ctx.globalAlpha = alpha;
-        if (i === 0) {
-          drawTitleSlide(ctx, canvas.width, canvas.height, blogTitle, branding);
-        } else {
-          drawCardFallback(canvas, cards[i - 1], blogTitle, i - 1, domain);
-        }
+        if (i === 0) drawTitleSlide(ctx, SIZE, blogTitle, branding);
+        else drawCardFallback(canvas, cards[i - 1]);
         await sleep(20);
       }
       ctx.globalAlpha = 1;
 
-      // 페이드 인 (AI 이미지 포함)
       try {
-        await drawCardWithAiImage(canvas, cards[i], blogTitle, i, domain);
+        await drawCardWithAiImage(canvas, cards[i]);
       } catch {
-        drawCardFallback(canvas, cards[i], blogTitle, i, domain);
+        drawCardFallback(canvas, cards[i]);
       }
       await sleep(3000);
     }
 
-    // 아웃로
     for (let alpha = 1; alpha >= 0; alpha -= 0.05) {
       ctx.globalAlpha = alpha;
-      drawCardFallback(canvas, cards[cards.length - 1], blogTitle, cards.length - 1, domain);
+      drawCardFallback(canvas, cards[cards.length - 1]);
       await sleep(20);
     }
     ctx.globalAlpha = 1;
-    drawOutroSlide(ctx, canvas.width, canvas.height, branding);
+    drawOutroSlide(ctx, SIZE, branding);
     await sleep(2500);
 
     recorder.stop();
@@ -624,7 +413,6 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
 
       <div className="grid grid-cols-5 gap-3">
         {cards.map((card, i) => {
-          const accent = ACCENT_COLORS[card.theme] || ACCENT_COLORS.blue;
           const isLoading = loadingStates[i];
           const preview = previews[i];
 
@@ -632,15 +420,12 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
             <div
               key={i}
               onClick={() => downloadImage(card, i)}
-              className="cursor-pointer group relative rounded-lg overflow-hidden aspect-video"
+              className="cursor-pointer group relative rounded-lg overflow-hidden aspect-square"
               style={{ background: '#0f172a' }}
             >
               {isLoading ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                  <div
-                    className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-                    style={{ borderColor: accent, borderTopColor: 'transparent' }}
-                  />
+                  <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                   <span className="text-white/50 text-[10px]">AI 이미지 생성 중...</span>
                 </div>
               ) : preview ? (
@@ -650,21 +435,10 @@ export default function ImageCardRenderer({ cards, blogTitle, domain = 'insuranc
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 p-3 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span
-                        className="text-xs font-bold px-1.5 py-0.5 rounded"
-                        style={{ background: accent, color: '#fff' }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="text-lg">{card.emoji}</span>
-                    </div>
-                    <p className="text-white text-xs font-bold mt-1.5 leading-tight line-clamp-2">
-                      {card.overlayText || card.title}
-                    </p>
-                  </div>
+                <div className="absolute inset-0 flex items-center justify-center p-3">
+                  <p className="text-white text-xs font-bold text-center leading-tight line-clamp-3">
+                    {card.overlayText || card.title}
+                  </p>
                 </div>
               )}
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
