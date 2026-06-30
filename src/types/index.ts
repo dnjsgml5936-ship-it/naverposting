@@ -437,6 +437,8 @@ export interface ImageCard {
   body: string;
   emoji: string;
   theme: 'blue' | 'green' | 'purple' | 'orange' | 'teal';
+  imagePrompt?: string;
+  overlayText?: string;
 }
 
 export interface GenerateResponse {
