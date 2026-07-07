@@ -64,13 +64,15 @@ export async function generateBlogPost(
 
   const model = await getLatestSonnetModel(apiKey);
 
-  const message = await client.messages.create({
+  // 스트리밍으로 응답 수집 (긴 요청 타임아웃 방지)
+  const stream = client.messages.stream({
     model,
     max_tokens: 64000,
-    stream: false,
     system: systemPrompt + '\n\n중요: 반드시 순수 JSON으로만 응답하세요. 코드블록(```)이나 마크다운 없이 { 로 시작하고 } 로 끝나는 JSON만 출력하세요.',
     messages: [{ role: 'user', content: userPrompt }],
   });
+
+  const message = await stream.finalMessage();
 
   const text =
     message.content[0].type === 'text' ? message.content[0].text : '';
