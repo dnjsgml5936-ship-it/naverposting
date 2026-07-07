@@ -66,53 +66,66 @@ export async function generateBlogPost(
 
   const message = await client.messages.create({
     model,
-    max_tokens: 16000,
+    max_tokens: 64000,
     stream: false,
-    system: systemPrompt + '\n\n중요: 반드시 JSON 코드블록(```json ... ```)으로 응답하세요. JSON 외의 텍스트는 출력하지 마세요.',
+    system: systemPrompt + '\n\n중요: 반드시 순수 JSON으로만 응답하세요. 코드블록(```)이나 마크다운 없이 { 로 시작하고 } 로 끝나는 JSON만 출력하세요.',
     messages: [{ role: 'user', content: userPrompt }],
   });
 
   const text =
     message.content[0].type === 'text' ? message.content[0].text : '';
 
-  // 1차: ```json ... ``` 블록 추출
+  // stop_reason 확인 (잘린 응답)
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error('AI 응답이 너무 길어 잘렸습니다. 키워드를 더 구체적으로 입력하거나 다시 시도해주세요.');
+  }
+
+  // JSON 추출 시도 함수
+  const tryParse = (str: string): GenerateResponse | null => {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return null;
+    }
+  };
+
+  // 1차: 전체 텍스트를 JSON으로 파싱
+  const directParse = tryParse(text.trim());
+  if (directParse) return directParse;
+
+  // 2차: ```json ... ``` 블록 추출
   const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
   if (jsonMatch) {
-    try {
-      return JSON.parse(jsonMatch[1]);
-    } catch {
-      // JSON 블록은 찾았지만 파싱 실패 - 아래로 계속
-    }
+    const parsed = tryParse(jsonMatch[1]);
+    if (parsed) return parsed;
   }
 
-  // 2차: ``` ... ``` 블록 추출 (json 라벨 없는 경우)
+  // 3차: ``` ... ``` 블록 추출 (json 라벨 없는 경우)
   const codeMatch = text.match(/```\s*([\s\S]*?)\s*```/);
   if (codeMatch) {
-    try {
-      return JSON.parse(codeMatch[1]);
-    } catch {
-      // 계속
-    }
+    const parsed = tryParse(codeMatch[1]);
+    if (parsed) return parsed;
   }
 
-  // 3차: { 로 시작하는 JSON 객체 직접 추출
-  const braceMatch = text.match(/\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}/);
-  if (braceMatch) {
-    try {
-      return JSON.parse(braceMatch[0]);
-    } catch {
-      // 계속
-    }
+  // 4차: 첫 번째 { 부터 마지막 } 까지 추출
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const parsed = tryParse(text.slice(firstBrace, lastBrace + 1));
+    if (parsed) return parsed;
   }
 
-  // 4차: 전체 텍스트를 JSON으로 파싱 시도
-  try {
-    return JSON.parse(text.trim());
-  } catch {
-    // 마지막: stop_reason이 max_tokens인 경우 (잘린 응답)
-    if (message.stop_reason === 'max_tokens') {
-      throw new Error('AI 응답이 너무 길어 잘렸습니다. 키워드를 더 구체적으로 입력하거나 다시 시도해주세요.');
-    }
-    throw new Error('AI 응답에서 JSON을 추출할 수 없습니다. 다시 시도해주세요.');
+  // 5차: 이스케이프 문제 수정 후 재시도
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const raw = text.slice(firstBrace, lastBrace + 1);
+    // content 필드 내부의 줄바꿈/탭 이스케이프 처리
+    const fixed = raw.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
+      match.replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r')
+    );
+    const parsed = tryParse(fixed);
+    if (parsed) return parsed;
   }
+
+  console.error('JSON 추출 실패. AI 원본 응답:', text.substring(0, 500));
+  throw new Error('AI 응답에서 JSON을 추출할 수 없습니다. 다시 시도해주세요.');
 }
