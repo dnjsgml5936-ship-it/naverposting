@@ -29,7 +29,45 @@ function getDb() {
       status TEXT NOT NULL DEFAULT 'draft',
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
-      publishedAt TEXT
+      publishedAt TEXT,
+      userId TEXT
+    )
+  `);
+
+  // 사용자 계정
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      passwordHash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      status TEXT NOT NULL DEFAULT 'pending',
+      createdAt TEXT NOT NULL
+    )
+  `);
+
+  // 로그인 세션 (DB 기반)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      expiresAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    )
+  `);
+
+  // AI 생성 로그 (저장 여부와 무관하게 모든 생성 호출 기록 — API 사용량 추적)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS generation_logs (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      keyword TEXT NOT NULL DEFAULT '',
+      domain TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      inputTokens INTEGER NOT NULL DEFAULT 0,
+      outputTokens INTEGER NOT NULL DEFAULT 0,
+      success INTEGER NOT NULL DEFAULT 1,
+      createdAt TEXT NOT NULL
     )
   `);
 
@@ -43,6 +81,11 @@ function getDb() {
   const hasGenerationInput = columns.some((c) => c.name === 'generationInput');
   if (!hasGenerationInput) {
     db.exec("ALTER TABLE posts ADD COLUMN generationInput TEXT");
+  }
+  // 작성자 컬럼 — 로그인 도입 이전 글은 NULL(관리자 계정 생성 시 귀속)
+  const hasUserId = columns.some((c) => c.name === 'userId');
+  if (!hasUserId) {
+    db.exec("ALTER TABLE posts ADD COLUMN userId TEXT");
   }
 
   // 발굴 키워드 테이블
@@ -86,9 +129,12 @@ function rowToPost(row: BlogPost): BlogPost {
   };
 }
 
-export function getAllPosts(): BlogPost[] {
+// userId를 넘기면 본인 글만, 없으면(관리자) 전체 조회
+export function getAllPosts(userId?: string): BlogPost[] {
   const db = getDb();
-  const rows = db.prepare('SELECT * FROM posts ORDER BY createdAt DESC').all() as BlogPost[];
+  const rows = userId
+    ? (db.prepare('SELECT * FROM posts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as BlogPost[])
+    : (db.prepare('SELECT * FROM posts ORDER BY createdAt DESC').all() as BlogPost[]);
   return rows.map(rowToPost);
 }
 
@@ -102,8 +148,8 @@ export function getPost(id: string): BlogPost | undefined {
 export function createPost(post: BlogPost): BlogPost {
   const db = getDb();
   db.prepare(`
-    INSERT INTO posts (id, title, content, htmlContent, keyword, domain, category, tags, status, createdAt, updatedAt, generationInput)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO posts (id, title, content, htmlContent, keyword, domain, category, tags, status, createdAt, updatedAt, generationInput, userId)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     post.id,
     post.title,
@@ -116,7 +162,8 @@ export function createPost(post: BlogPost): BlogPost {
     post.status,
     post.createdAt,
     post.updatedAt,
-    post.generationInput ? JSON.stringify(post.generationInput) : null
+    post.generationInput ? JSON.stringify(post.generationInput) : null,
+    post.userId || null
   );
   return post;
 }
@@ -238,4 +285,176 @@ export function getDiscoveredKeywordStats(): { total: number; s: number; a: numb
   }
 
   return { total, s, a, b, c, byDomain };
+}
+
+// ============================================================
+// 사용자 / 세션 / 사용량 로그
+// ============================================================
+export interface UserRow {
+  id: string;
+  username: string;
+  passwordHash: string;
+  role: 'admin' | 'user';
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+export function countUsers(): number {
+  const db = getDb();
+  return (db.prepare('SELECT COUNT(*) as cnt FROM users').get() as { cnt: number }).cnt;
+}
+
+export function getUserByUsername(username: string): UserRow | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as UserRow | undefined;
+}
+
+export function getUserById(id: string): UserRow | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
+}
+
+export function createUser(user: UserRow): UserRow {
+  const db = getDb();
+  db.prepare(
+    'INSERT INTO users (id, username, passwordHash, role, status, createdAt) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(user.id, user.username, user.passwordHash, user.role, user.status, user.createdAt);
+  return user;
+}
+
+export function getAllUsers(): Omit<UserRow, 'passwordHash'>[] {
+  const db = getDb();
+  return db.prepare(
+    'SELECT id, username, role, status, createdAt FROM users ORDER BY createdAt ASC'
+  ).all() as Omit<UserRow, 'passwordHash'>[];
+}
+
+export function setUserStatus(id: string, status: UserRow['status']): boolean {
+  const db = getDb();
+  return db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, id).changes > 0;
+}
+
+// 로그인 도입 이전 글(userId NULL)을 관리자 계정으로 귀속
+export function assignOrphanPostsTo(userId: string): number {
+  const db = getDb();
+  return db.prepare('UPDATE posts SET userId = ? WHERE userId IS NULL').run(userId).changes;
+}
+
+// --- 세션 ---
+export function createSession(id: string, userId: string, expiresAt: string): void {
+  const db = getDb();
+  db.prepare('INSERT INTO sessions (id, userId, expiresAt, createdAt) VALUES (?, ?, ?, ?)').run(
+    id, userId, expiresAt, new Date().toISOString()
+  );
+}
+
+export function getSessionUser(sessionId: string): UserRow | undefined {
+  const db = getDb();
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId) as
+    | { id: string; userId: string; expiresAt: string }
+    | undefined;
+  if (!session) return undefined;
+  if (new Date(session.expiresAt).getTime() < Date.now()) {
+    db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
+    return undefined;
+  }
+  return getUserById(session.userId);
+}
+
+export function deleteSession(sessionId: string): void {
+  const db = getDb();
+  db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
+}
+
+// --- 생성 로그 ---
+export interface GenerationLogRow {
+  id: string;
+  userId: string;
+  keyword: string;
+  domain: string;
+  category: string;
+  inputTokens: number;
+  outputTokens: number;
+  success: number;
+  createdAt: string;
+}
+
+export function logGeneration(log: GenerationLogRow): void {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO generation_logs (id, userId, keyword, domain, category, inputTokens, outputTokens, success, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    log.id, log.userId, log.keyword, log.domain, log.category,
+    log.inputTokens, log.outputTokens, log.success, log.createdAt
+  );
+}
+
+// 사용자별 × 월별 생성 통계 (생성 횟수 / 저장 글 수 / 토큰 사용량)
+export interface UsageStatRow {
+  userId: string;
+  username: string;
+  month: string; // YYYY-MM
+  generations: number;
+  inputTokens: number;
+  outputTokens: number;
+  savedPosts: number;
+}
+
+export function getUsageStats(): UsageStatRow[] {
+  const db = getDb();
+  // 생성 로그 집계
+  const genRows = db.prepare(`
+    SELECT g.userId AS userId, u.username AS username,
+           substr(g.createdAt, 1, 7) AS month,
+           COUNT(*) AS generations,
+           SUM(g.inputTokens) AS inputTokens,
+           SUM(g.outputTokens) AS outputTokens
+    FROM generation_logs g
+    LEFT JOIN users u ON u.id = g.userId
+    GROUP BY g.userId, month
+  `).all() as Omit<UsageStatRow, 'savedPosts'>[];
+
+  // 저장 글 집계
+  const postRows = db.prepare(`
+    SELECT userId, substr(createdAt, 1, 7) AS month, COUNT(*) AS savedPosts
+    FROM posts
+    WHERE userId IS NOT NULL
+    GROUP BY userId, month
+  `).all() as { userId: string; month: string; savedPosts: number }[];
+
+  const map = new Map<string, UsageStatRow>();
+  for (const r of genRows) {
+    map.set(`${r.userId}|${r.month}`, {
+      userId: r.userId,
+      username: r.username || '(삭제된 사용자)',
+      month: r.month,
+      generations: r.generations,
+      inputTokens: r.inputTokens || 0,
+      outputTokens: r.outputTokens || 0,
+      savedPosts: 0,
+    });
+  }
+  for (const p of postRows) {
+    const key = `${p.userId}|${p.month}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.savedPosts = p.savedPosts;
+    } else {
+      const user = getUserById(p.userId);
+      map.set(key, {
+        userId: p.userId,
+        username: user?.username || '(삭제된 사용자)',
+        month: p.month,
+        generations: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        savedPosts: p.savedPosts,
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) =>
+    b.month.localeCompare(a.month) || a.username.localeCompare(b.username)
+  );
 }

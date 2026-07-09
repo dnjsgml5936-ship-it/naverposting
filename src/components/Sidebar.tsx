@@ -12,8 +12,17 @@ const navItems = [
   { href: '/settings', label: '설정 (네이버 로그인)', icon: '⚙️' },
 ];
 
-export default function Sidebar() {
+const adminItem = { href: '/admin', label: '관리자 (사용자·사용량)', icon: '🛡️' };
+
+export default function Sidebar({
+  isAdmin = false,
+  username,
+}: {
+  isAdmin?: boolean;
+  username?: string;
+}) {
   const pathname = usePathname();
+  const items = isAdmin ? [...navItems, adminItem] : navItems;
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[var(--border)] flex flex-col z-10">
@@ -30,7 +39,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const isActive =
               item.href === '/'
                 ? pathname === '/'
@@ -56,7 +65,20 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[var(--border)]">
+      <div className="p-4 border-t border-[var(--border)] space-y-3">
+        {username && (
+          <div className="flex items-center justify-between px-1">
+            <div className="min-w-0">
+              <p className="text-xs font-medium truncate">{username}</p>
+              <p className="text-[10px] text-[var(--muted)]">{isAdmin ? '관리자' : '사용자'}</p>
+            </div>
+            <form action="/api/auth/logout" method="post">
+              <button className="text-xs text-[var(--muted)] hover:text-red-500 transition-colors">
+                로그아웃
+              </button>
+            </form>
+          </div>
+        )}
         <div className="px-4 py-2 bg-blue-50 rounded-lg">
           <p className="text-xs font-medium text-[var(--primary)]">AIEO 최적화</p>
           <p className="text-xs text-[var(--muted)] mt-0.5">네이버 홈판 상위노출</p>

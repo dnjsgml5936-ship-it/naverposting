@@ -83,9 +83,15 @@ const BLOG_POST_TOOL: Anthropic.Tool = {
   },
 };
 
+export interface GenerateResult {
+  post: GenerateResponse | null;
+  error: string | null;
+  usage: { inputTokens: number; outputTokens: number };
+}
+
 export async function generateBlogPost(
   request: GenerateRequest
-): Promise<GenerateResponse> {
+): Promise<GenerateResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY가 설정되지 않았습니다. .env.local 파일을 확인하세요.');
@@ -111,9 +117,15 @@ export async function generateBlogPost(
 
   const message = await stream.finalMessage();
 
+  // 성공/실패와 무관하게 소비된 토큰을 집계 (API 비용 추적)
+  const usage = {
+    inputTokens: message.usage?.input_tokens ?? 0,
+    outputTokens: message.usage?.output_tokens ?? 0,
+  };
+
   // stop_reason 확인 (응답이 잘리면 tool_use 입력 JSON도 불완전해짐)
   if (message.stop_reason === 'max_tokens') {
-    throw new Error('AI 응답이 너무 길어 잘렸습니다. 키워드를 더 구체적으로 입력하거나 다시 시도해주세요.');
+    return { post: null, error: 'AI 응답이 너무 길어 잘렸습니다. 키워드를 더 구체적으로 입력하거나 다시 시도해주세요.', usage };
   }
 
   // tool_use 블록에서 이미 파싱된 구조화 결과 추출
@@ -122,7 +134,7 @@ export async function generateBlogPost(
   );
 
   if (toolUse && toolUse.input && typeof toolUse.input === 'object') {
-    return toolUse.input as GenerateResponse;
+    return { post: toolUse.input as GenerateResponse, error: null, usage };
   }
 
   console.error(
@@ -131,5 +143,5 @@ export async function generateBlogPost(
     '| content types:',
     message.content.map((b) => b.type).join(', ')
   );
-  throw new Error('AI가 구조화된 응답을 반환하지 못했습니다. 다시 시도해주세요.');
+  return { post: null, error: 'AI가 구조화된 응답을 반환하지 못했습니다. 다시 시도해주세요.', usage };
 }

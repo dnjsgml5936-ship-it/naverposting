@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPost, updatePost } from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+
     const { postId, method } = await request.json();
 
     if (!postId) {
@@ -12,6 +16,10 @@ export async function POST(request: NextRequest) {
     const post = getPost(postId);
     if (!post) {
       return NextResponse.json({ error: '포스트를 찾을 수 없습니다.' }, { status: 404 });
+    }
+    // 본인 글이거나 관리자만 발행 가능
+    if (user.role !== 'admin' && post.userId !== user.id) {
+      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
     }
 
     if (method === 'selenium') {

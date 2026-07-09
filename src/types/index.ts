@@ -478,6 +478,8 @@ export interface BlogPost {
   publishedAt?: string;
   // 이 글을 생성할 때 입력했던 원본 요청(키워드·톤·맥락 등). 과거 글은 없을 수 있음
   generationInput?: GenerateRequest;
+  // 작성자(사용자) ID. 로그인 도입 이전 글은 없을 수 있음
+  userId?: string;
 }
 
 export interface GenerateRequest {
