@@ -194,6 +194,79 @@ export const KEYWORD_DATABASE: KeywordEntry[] = [
   { keyword: '법인 청산 절차', domain: 'corporate_consulting', category: 'corp_liquidation' },
   { keyword: '휴면법인 정리', domain: 'corporate_consulting', category: 'corp_liquidation' },
   { keyword: '법인 M&A 절차', domain: 'corporate_consulting', category: 'corp_ma' },
+
+  // ============================================================
+  // 부동산 도메인
+  // ============================================================
+  // 매물소개/분석
+  { keyword: '아파트 매물 추천', domain: 'real_estate', category: 're_apt_listing' },
+  { keyword: '잠실 아파트 매매', domain: 'real_estate', category: 're_apt_listing' },
+  { keyword: '강남 아파트 전세', domain: 'real_estate', category: 're_apt_listing' },
+  { keyword: '주상복합 매물 추천', domain: 'real_estate', category: 're_luxury_listing' },
+  { keyword: '고급 빌라 매매', domain: 'real_estate', category: 're_villa_listing' },
+  { keyword: '한남동 고급빌라', domain: 'real_estate', category: 're_luxury_listing' },
+  { keyword: '오피스텔 매물 비교', domain: 'real_estate', category: 're_officetel_listing' },
+  { keyword: '오피스텔 수익률 분석', domain: 'real_estate', category: 're_officetel_listing' },
+  { keyword: '신축 빌라 매매', domain: 'real_estate', category: 're_villa_listing' },
+  { keyword: '역세권 오피스텔 추천', domain: 'real_estate', category: 're_officetel_listing' },
+
+  // 전월세 가이드
+  { keyword: '전세 계약 체크리스트', domain: 'real_estate', category: 're_jeonse_guide' },
+  { keyword: '전세사기 예방법', domain: 'real_estate', category: 're_jeonse_guide' },
+  { keyword: '전세보증보험 가입방법', domain: 'real_estate', category: 're_tenant_rights' },
+  { keyword: '월세 계약 주의사항', domain: 'real_estate', category: 're_monthly_guide' },
+  { keyword: '전월세 특약사항 필수', domain: 'real_estate', category: 're_contract_tips' },
+  { keyword: '전월세 계약서 작성법', domain: 'real_estate', category: 're_contract_tips' },
+  { keyword: '임차인 대항력 요건', domain: 'real_estate', category: 're_tenant_rights' },
+  { keyword: '전세금 반환 방법', domain: 'real_estate', category: 're_tenant_rights' },
+  { keyword: '보증금 돌려받기', domain: 'real_estate', category: 're_tenant_rights' },
+  { keyword: '월세 세액공제 방법', domain: 'real_estate', category: 're_monthly_guide' },
+
+  // 매매 가이드
+  { keyword: '아파트 매매 절차', domain: 'real_estate', category: 're_purchase_process' },
+  { keyword: '부동산 매매 계약 주의사항', domain: 'real_estate', category: 're_purchase_process' },
+  { keyword: '취득세 계산 방법', domain: 'real_estate', category: 're_tax_guide' },
+  { keyword: '양도소득세 비과세 요건', domain: 'real_estate', category: 're_tax_guide' },
+  { keyword: '종합부동산세 계산', domain: 'real_estate', category: 're_tax_guide' },
+  { keyword: '주택담보대출 비교', domain: 'real_estate', category: 're_loan_guide' },
+  { keyword: 'DSR 규제 대출한도', domain: 'real_estate', category: 're_loan_guide' },
+  { keyword: '생애최초 주택 취득세 감면', domain: 'real_estate', category: 're_first_home' },
+  { keyword: '생애최초 주택구매 대출', domain: 'real_estate', category: 're_first_home' },
+  { keyword: '다주택자 양도세 중과', domain: 'real_estate', category: 're_tax_guide' },
+
+  // 시장/지역 분석
+  { keyword: '부동산 시장 전망', domain: 'real_estate', category: 're_market_trend' },
+  { keyword: '서울 아파트 시세 동향', domain: 'real_estate', category: 're_market_trend' },
+  { keyword: '강남구 부동산 분석', domain: 'real_estate', category: 're_area_analysis' },
+  { keyword: '수도권 부동산 전망', domain: 'real_estate', category: 're_market_trend' },
+  { keyword: '부동산 규제 완화 영향', domain: 'real_estate', category: 're_policy_impact' },
+  { keyword: '재개발 구역 투자', domain: 'real_estate', category: 're_redevelopment' },
+  { keyword: '재건축 초과이익환수제', domain: 'real_estate', category: 're_redevelopment' },
+  { keyword: '신도시 개발 전망', domain: 'real_estate', category: 're_area_analysis' },
+  { keyword: 'GTX 역세권 부동산', domain: 'real_estate', category: 're_area_analysis' },
+  { keyword: '부동산 정책 변화 정리', domain: 'real_estate', category: 're_policy_impact' },
+
+  // 빌딩/상가 투자
+  { keyword: '꼬마빌딩 매매 방법', domain: 'real_estate', category: 're_small_building' },
+  { keyword: '꼬마빌딩 수익률 분석', domain: 'real_estate', category: 're_small_building' },
+  { keyword: '강남 빌딩 매매', domain: 'real_estate', category: 're_small_building' },
+  { keyword: '상가 투자 수익률', domain: 'real_estate', category: 're_commercial' },
+  { keyword: '상가 임대 주의사항', domain: 'real_estate', category: 're_commercial' },
+  { keyword: '사옥 매매 방법', domain: 'real_estate', category: 're_office_invest' },
+  { keyword: '임대 수익률 계산', domain: 'real_estate', category: 're_rental_income' },
+  { keyword: '수익형 부동산 추천', domain: 'real_estate', category: 're_rental_income' },
+  { keyword: '원룸 임대사업 수익', domain: 'real_estate', category: 're_rental_income' },
+  { keyword: '빌딩 매입 절차', domain: 'real_estate', category: 're_small_building' },
+
+  // 임장/현장리뷰
+  { keyword: '아파트 임장 체크리스트', domain: 'real_estate', category: 're_apt_review' },
+  { keyword: '아파트 단지 분석 방법', domain: 'real_estate', category: 're_apt_review' },
+  { keyword: '신축 아파트 분양 분석', domain: 'real_estate', category: 're_new_complex' },
+  { keyword: '모델하우스 방문 후기', domain: 'real_estate', category: 're_new_complex' },
+  { keyword: '청약 당첨 전략', domain: 'real_estate', category: 're_new_complex' },
+  { keyword: '학군 좋은 아파트', domain: 'real_estate', category: 're_area_tour' },
+  { keyword: '역세권 아파트 추천', domain: 'real_estate', category: 're_area_tour' },
+  { keyword: '빌딩 현장답사 체크리스트', domain: 'real_estate', category: 're_building_review' },
 ];
 
 export function getKeywordsByDomain(domain: PostDomain): KeywordEntry[] {

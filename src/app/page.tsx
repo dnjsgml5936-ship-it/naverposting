@@ -50,6 +50,7 @@ function getDomainColor(domain: PostDomain): string {
     case 'smart_factory': return 'bg-teal-100 text-teal-700';
     case 'disabled_workplace': return 'bg-rose-100 text-rose-700';
     case 'bizinfo': return 'bg-amber-100 text-amber-700';
+    case 'real_estate': return 'bg-green-100 text-green-700';
   }
 }
 

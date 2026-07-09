@@ -1,7 +1,7 @@
 // ============================================================
 // 도메인 (Domain)
 // ============================================================
-export type PostDomain = 'insurance' | 'policy_fund' | 'iso_certification' | 'corporate_consulting' | 'smart_factory' | 'disabled_workplace' | 'bizinfo';
+export type PostDomain = 'insurance' | 'policy_fund' | 'iso_certification' | 'corporate_consulting' | 'smart_factory' | 'disabled_workplace' | 'bizinfo' | 'real_estate';
 
 export const DOMAIN_LABELS: Record<PostDomain, string> = {
   insurance: '보험',
@@ -11,6 +11,7 @@ export const DOMAIN_LABELS: Record<PostDomain, string> = {
   smart_factory: '스마트공장',
   disabled_workplace: '장애인표준사업장',
   bizinfo: '기업마당',
+  real_estate: '부동산',
 };
 
 // ============================================================
@@ -374,6 +375,77 @@ export const DISABLED_WORKPLACE_CATEGORIES: DisabledWorkplaceCategory[] = [
 ];
 
 // ============================================================
+// 부동산 카테고리
+// ============================================================
+export interface RealEstateTopic {
+  key: string;
+  label: string;
+  description: string;
+}
+
+export interface RealEstateCategory {
+  label: string;
+  topics: RealEstateTopic[];
+}
+
+export const REAL_ESTATE_CATEGORIES: RealEstateCategory[] = [
+  {
+    label: '매물소개/분석',
+    topics: [
+      { key: 're_apt_listing', label: '아파트 매물 소개', description: '아파트 매매/전세/월세 매물 상세 분석 및 소개' },
+      { key: 're_villa_listing', label: '빌라/다세대 매물', description: '빌라, 다세대, 다가구 매물 소개 및 장단점 분석' },
+      { key: 're_officetel_listing', label: '오피스텔 매물', description: '오피스텔 매매/임대 매물 소개 및 수익률 분석' },
+      { key: 're_luxury_listing', label: '고급 주거 매물', description: '고급 아파트, 주상복합, 타운하우스 등 프리미엄 매물 소개' },
+    ],
+  },
+  {
+    label: '전월세 가이드',
+    topics: [
+      { key: 're_jeonse_guide', label: '전세 계약 가이드', description: '전세 계약 시 체크리스트, 주의사항, 안전한 전세 찾기' },
+      { key: 're_monthly_guide', label: '월세 계약 가이드', description: '월세 계약 조건 비교, 보증금/월세 비율, 관리비 확인' },
+      { key: 're_contract_tips', label: '계약서 특약사항', description: '전월세 계약서 필수 특약, 분쟁 예방 조항 작성법' },
+      { key: 're_tenant_rights', label: '임차인 권리보호', description: '임대차보호법, 대항력, 우선변제권, 전세보증보험' },
+    ],
+  },
+  {
+    label: '매매 가이드',
+    topics: [
+      { key: 're_purchase_process', label: '매매 절차 총정리', description: '부동산 매매 계약부터 잔금, 등기까지 단계별 가이드' },
+      { key: 're_tax_guide', label: '부동산 세금 가이드', description: '취득세, 양도소득세, 종합부동산세 등 세금 완벽 정리' },
+      { key: 're_loan_guide', label: '주택담보대출 가이드', description: 'LTV, DTI, DSR 규제 및 대출 조건 비교, 금리 분석' },
+      { key: 're_first_home', label: '생애최초 주택 구매', description: '생애최초 주택 구매 혜택, 취득세 감면, 대출 우대' },
+    ],
+  },
+  {
+    label: '시장/지역 분석',
+    topics: [
+      { key: 're_market_trend', label: '부동산 시장 동향', description: '전국/수도권 부동산 시세 트렌드, 가격 전망 분석' },
+      { key: 're_area_analysis', label: '지역 분석 리포트', description: '특정 지역(구/동) 부동산 시세, 개발호재, 투자가치 분석' },
+      { key: 're_policy_impact', label: '부동산 정책 분석', description: '정부 부동산 규제/완화 정책이 시장에 미치는 영향' },
+      { key: 're_redevelopment', label: '재개발/재건축 분석', description: '재개발·재건축 구역 진행 단계, 투자 포인트, 리스크' },
+    ],
+  },
+  {
+    label: '빌딩/상가 투자',
+    topics: [
+      { key: 're_small_building', label: '꼬마빌딩 투자', description: '소규모 빌딩(꼬마빌딩) 매매, 수익률 분석, 투자 전략' },
+      { key: 're_commercial', label: '상가 투자 분석', description: '상가 매매/임대 수익률, 공실 리스크, 입지 분석' },
+      { key: 're_office_invest', label: '사무실/사옥 매매', description: '사옥용 빌딩 매매, 사무실 임대 시장 분석' },
+      { key: 're_rental_income', label: '임대 수익형 부동산', description: '원룸, 다가구, 상가 등 임대 수익 극대화 전략' },
+    ],
+  },
+  {
+    label: '임장/현장리뷰',
+    topics: [
+      { key: 're_apt_review', label: '아파트 단지 임장', description: '아파트 단지 현장 방문 후기, 입주 환경, 커뮤니티 분석' },
+      { key: 're_new_complex', label: '신축 분양 단지 분석', description: '신축 아파트 분양 정보, 모델하우스 방문 후기, 청약 분석' },
+      { key: 're_area_tour', label: '동네 탐방/생활권 분석', description: '학군, 교통, 편의시설 등 생활 인프라 현장 리뷰' },
+      { key: 're_building_review', label: '빌딩/상가 현장 답사', description: '빌딩, 상가 현장 답사 후기, 건물 상태 및 입지 분석' },
+    ],
+  },
+];
+
+// ============================================================
 // 네이버 뉴스 검색 결과
 // ============================================================
 export interface NaverNewsItem {
@@ -429,6 +501,8 @@ export interface GenerateRequest {
   smartFactoryTopic?: string;
   // 장애인표준사업장 전용
   disabledWorkplaceTopic?: string;
+  // 부동산 전용
+  realEstateTopic?: string;
 }
 
 export interface ImageCard {

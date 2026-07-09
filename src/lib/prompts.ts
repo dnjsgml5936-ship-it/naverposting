@@ -10,6 +10,7 @@ import {
   CORP_CONSULTING_CATEGORIES,
   SMART_FACTORY_CATEGORIES,
   DISABLED_WORKPLACE_CATEGORIES,
+  REAL_ESTATE_CATEGORIES,
   NaverNewsItem,
   GenerateRequest,
 } from '@/types';
@@ -415,6 +416,39 @@ ${COMMON_HTML_FORMAT}`;
 }
 
 // ============================================================
+// 부동산 도메인
+// ============================================================
+function buildRealEstateSystemPrompt(): string {
+  return `당신은 15년 경력의 공인중개사 겸 부동산 투자 전문가가 운영하는 네이버 블로그의 글을 작성하는 전문 작가입니다.
+
+## 핵심 원칙
+1. **전문성**: 부동산 거래, 계약, 세금, 투자에 대한 깊이 있는 실무 지식 기반
+2. **신뢰성(E-E-A-T)**: 실제 중개/투자 경험에서 우러나온 인사이트와 사례 중심
+3. **정확성**: 부동산 관련 법규(부동산거래신고법, 주택임대차보호법 등), 세금(취득세, 양도세, 종부세), 대출 규제(LTV, DTI, DSR) 등 최신 정보 기반
+4. **실용성**: 실수요자/투자자가 바로 활용할 수 있는 구체적 정보 제공
+
+${COMMON_AIEO_RULES}
+
+## 글쓰기 스타일
+- 부동산 전문 용어를 일반인 눈높이에서 쉽게 풀어서 설명
+- "~입니다/합니다"체 사용하되, "~거든요", "~잖아요" 같은 구어체 혼합
+- 실제 중개/투자 경험 사례(가명, 지역 일반화)를 자연스럽게 녹여내기
+- 시세, 수익률, 세금 등 구체적 수치를 표나 리스트로 정리
+- 매물 소개 시: 위치, 면적, 가격, 장단점, 주변 인프라를 체계적으로 정리
+- 계약 가이드 시: 단계별 체크리스트, 주의사항, 법적 권리를 명확히 안내
+- 시장 분석 시: 데이터 기반 객관적 분석과 전문가 견해를 균형있게 제시
+- 이모지는 소제목에 1개씩만 절제해서 사용
+
+## 특별 규칙
+- 국토교통부 실거래가 공개시스템(rt.molit.go.kr), 한국부동산원 등 공식 데이터 출처 안내
+- 매물 정보 작성 시 면적은 전용면적/공급면적 모두 표기
+- 세금/대출 정보는 최신 기준 명시 (예: "2026년 기준")
+- 투자 관련 글은 리스크 경고 문구를 반드시 포함
+
+${COMMON_HTML_FORMAT}`;
+}
+
+// ============================================================
 // 시스템 프롬프트 빌더
 // ============================================================
 export function buildSystemPrompt(domain: PostDomain = 'insurance'): string {
@@ -433,6 +467,8 @@ export function buildSystemPrompt(domain: PostDomain = 'insurance'): string {
       return buildDisabledWorkplaceSystemPrompt();
     case 'bizinfo':
       return buildBizinfoSystemPrompt();
+    case 'real_estate':
+      return buildRealEstateSystemPrompt();
   }
 }
 
@@ -455,6 +491,8 @@ export function buildGeneratePrompt(params: GenerateRequest): string {
       return buildDisabledWorkplacePrompt(params);
     case 'bizinfo':
       return buildBizinfoPrompt(params);
+    case 'real_estate':
+      return buildRealEstatePrompt(params);
     default:
       return buildInsurancePrompt(params);
   }
@@ -831,6 +869,65 @@ ${COMMON_OUTPUT_FORMAT}
 4. **마무리**: 전문 상담 유도 CTA + 기업마당 홈페이지 안내
 5. **tags**: 메인 키워드 + 지원사업 관련 키워드 5~8개
 6. **imageCards**: 핵심 정보(지원금, 절차, 자격요건 등) 시각화 카드 5장
+
+seoScore는 다음 기준으로 0~100점 자체 평가:
+- 키워드 밀도 적정(1.5~2.5%): 20점
+- 구조화(소제목, FAQ): 20점
+- E-E-A-T 요소: 20점
+- 콘텐츠 길이 적정: 20점
+- CTA 포함: 20점`;
+}
+
+function buildRealEstatePrompt(params: GenerateRequest): string {
+  let topicLabel = params.realEstateTopic || '';
+  let topicDesc = '';
+  for (const cat of REAL_ESTATE_CATEGORIES) {
+    const found = cat.topics.find((t) => t.key === params.realEstateTopic);
+    if (found) {
+      topicLabel = found.label;
+      topicDesc = found.description;
+      break;
+    }
+  }
+
+  const toneGuide = getToneGuide(params.tone);
+
+  return `## 작성 요청
+
+**메인 키워드**: ${params.keyword}
+**부동산 주제**: ${topicLabel}
+**주제 설명**: ${topicDesc}
+**글쓰기 톤**: ${toneGuide}
+${params.targetAge ? `**타겟 대상**: ${params.targetAge}` : ''}
+${params.painPoint ? `**고객 고민 포인트**: ${params.painPoint}` : ''}
+${params.additionalContext ? `**추가 맥락**: ${params.additionalContext}` : ''}
+
+[부동산 전문 지식]
+- 부동산 거래 유형: 매매, 전세, 월세, 단기임대, 분양권 전매
+- 부동산 세금: 취득세(1~12%), 양도소득세(기본세율/중과), 종합부동산세, 재산세
+- 주택담보대출: LTV(최대 70%), DTI, DSR(40%) 규제, 금리 비교
+- 전세보증보험: HUG, SGI서울보증 가입 조건 및 보험료
+- 임대차보호법: 대항력, 확정일자, 우선변제권, 계약갱신청구권(2+2년)
+- 부동산 계약: 계약금(10%) → 중도금 → 잔금, 특약사항 필수 기재 항목
+- 실거래가 확인: 국토교통부 실거래가 공개시스템(rt.molit.go.kr)
+- 빌딩 투자: 토지 단가, 건물 감가상각, 임대 수익률(NOI/매입가), 공실률
+- 재개발/재건축: 조합설립인가 → 사업시행인가 → 관리처분인가 → 착공 → 준공
+- 분양권/입주권: 전매 제한 기간, 프리미엄 형성 요인, 세금 주의점
+
+${COMMON_OUTPUT_FORMAT}
+
+## 필수 포함 요소
+1. **도입부**: 부동산 관심 독자의 고민에 공감 + 키워드 자연 삽입
+2. **본론 (소제목 3~5개)**:
+   - 해당 주제의 핵심 정보 (시세, 조건, 절차 등)
+   - 구체적 수치 (가격, 면적, 수익률, 세금 등)
+   - 실제 사례 (가명, 지역 일반화) 활용
+   - 주의사항/리스크 안내
+   - 체크리스트 또는 비교표
+3. **FAQ 섹션**: "자주 묻는 질문" 2~3개 (AI 검색 발췌 최적화)
+4. **마무리**: 전문 상담 유도 CTA + 실거래가 확인 사이트 안내
+5. **tags**: 메인 키워드 + 부동산 관련 키워드 5~8개
+6. **imageCards**: 핵심 정보(시세, 체크리스트, 절차, 비교표 등) 시각화 카드 5장
 
 seoScore는 다음 기준으로 0~100점 자체 평가:
 - 키워드 밀도 적정(1.5~2.5%): 20점

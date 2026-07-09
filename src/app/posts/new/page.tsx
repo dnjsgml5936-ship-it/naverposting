@@ -15,6 +15,7 @@ import {
   CORP_CONSULTING_CATEGORIES,
   SMART_FACTORY_CATEGORIES,
   DISABLED_WORKPLACE_CATEGORIES,
+  REAL_ESTATE_CATEGORIES,
   NaverNewsItem,
   GenerateRequest,
   GenerateResponse,
@@ -98,6 +99,9 @@ function NewPostContent() {
 
   // 장애인표준사업장 전용
   const [disabledWorkplaceTopic, setDisabledWorkplaceTopic] = useState<string>('dw_establish');
+
+  // 부동산 전용
+  const [realEstateTopic, setRealEstateTopic] = useState<string>('re_apt_listing');
 
   // 기업마당 전용
   const [bizinfoProgram, setBizinfoProgram] = useState<GovSupportProgram | null>(null);
@@ -252,6 +256,8 @@ function NewPostContent() {
         return disabledWorkplaceTopic;
       case 'bizinfo':
         return bizinfoProgram?.pblancId || 'bizinfo_general';
+      case 'real_estate':
+        return realEstateTopic;
     }
   }
 
@@ -321,6 +327,9 @@ function NewPostContent() {
       }
       if (domain === 'disabled_workplace') {
         body.disabledWorkplaceTopic = disabledWorkplaceTopic;
+      }
+      if (domain === 'real_estate') {
+        body.realEstateTopic = realEstateTopic;
       }
       if (domain === 'bizinfo' && bizinfoProgram) {
         body.govProgram = bizinfoProgram;
@@ -448,6 +457,7 @@ function NewPostContent() {
                     : domain === 'smart_factory' ? '예: 스마트공장 구축 지원사업 신청방법'
                     : domain === 'disabled_workplace' ? '예: 장애인표준사업장 설립 지원금'
                     : domain === 'bizinfo' ? '예: 중소기업 지원사업 신청방법'
+                    : domain === 'real_estate' ? '예: 전세 계약 체크리스트, 강남 꼬마빌딩 매매'
                     : '예: 법인전환 절세 효과'
                 }
                 className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
@@ -799,6 +809,53 @@ function NewPostContent() {
               </div>
             )}
 
+            {/* ========== 부동산 주제 선택 ========== */}
+            {domain === 'real_estate' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">부동산 주제</label>
+                  <div className="max-h-72 overflow-y-auto space-y-3 border border-[var(--border)] rounded-lg p-3">
+                    {REAL_ESTATE_CATEGORIES.map((cat) => (
+                      <div key={cat.label}>
+                        <p className="text-xs font-bold text-[var(--muted)] mb-1.5 uppercase">{cat.label}</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {cat.topics.map((topic) => (
+                            <button
+                              key={topic.key}
+                              onClick={() => setRealEstateTopic(topic.key)}
+                              className={`text-left px-2.5 py-2 rounded-lg transition-colors ${
+                                realEstateTopic === topic.key
+                                  ? 'bg-emerald-50 border border-emerald-400 text-emerald-700'
+                                  : 'bg-gray-50 border border-transparent hover:bg-gray-100'
+                              }`}
+                            >
+                              <p className="text-xs font-medium">{topic.label}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {realEstateTopic && (() => {
+                  let selected: { label: string; description: string } | null = null;
+                  for (const cat of REAL_ESTATE_CATEGORIES) {
+                    const found = cat.topics.find((t) => t.key === realEstateTopic);
+                    if (found) { selected = found; break; }
+                  }
+                  return selected ? (
+                    <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <p className="text-xs font-medium text-emerald-700">선택된 주제</p>
+                      <p className="text-sm font-medium mt-1">{selected.label}</p>
+                      <p className="text-xs text-[var(--muted)] mt-0.5">{selected.description}</p>
+                    </div>
+                  ) : null;
+                })()}
+
+              </div>
+            )}
+
             {/* ========== 기업마당 지원사업 선택 ========== */}
             {domain === 'bizinfo' && (
               <div className="space-y-4">
@@ -899,6 +956,7 @@ function NewPostContent() {
                     : domain === 'smart_factory' ? '예: 제조업 중소기업 대표/공장장'
                     : domain === 'disabled_workplace' ? '예: 의무고용 미이행 중견기업'
                     : domain === 'bizinfo' ? '예: 매출 50억 이하 제조업 중소기업'
+                    : domain === 'real_estate' ? '예: 30대 신혼부부, 부동산 투자 초보자'
                     : '예: 업력 3년 이내 스타트업'
                 }
                 className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
@@ -922,6 +980,7 @@ function NewPostContent() {
                     : domain === 'smart_factory' ? '예: 공장 자동화가 필요한데 비용이 부담'
                     : domain === 'disabled_workplace' ? '예: 의무고용 부담금이 너무 큰데 대안이 필요'
                     : domain === 'bizinfo' ? '예: 지원사업 신청 조건이 복잡해서 어디서부터 시작할지 모름'
+                    : domain === 'real_estate' ? '예: 전세사기가 걱정되는데 안전한 전세 계약 방법을 알고 싶음'
                     : '예: 담보 없이 운전자금이 급하게 필요'
                 }
                 className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
@@ -974,6 +1033,7 @@ function NewPostContent() {
                   : domain === 'smart_factory' ? 'AI가 스마트공장 구축/지원 블로그 포스팅을 작성합니다'
                   : domain === 'disabled_workplace' ? 'AI가 장애인표준사업장 안내 블로그 포스팅을 작성합니다'
                   : domain === 'bizinfo' ? 'AI가 기업마당 지원사업/금융 안내 블로그 포스팅을 작성합니다'
+                  : domain === 'real_estate' ? 'AI가 부동산 전문 블로그 포스팅을 작성합니다 (매물/계약/투자/시장분석)'
                   : 'AI가 법인컨설팅 전문 블로그 포스팅을 작성합니다'}
               </p>
             </div>

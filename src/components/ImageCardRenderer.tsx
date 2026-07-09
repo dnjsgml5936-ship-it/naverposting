@@ -11,6 +11,7 @@ const DOMAIN_BRANDING: Record<PostDomain, { label: string; color: string }> = {
   smart_factory: { label: '스마트공장 전문 컨설턴트', color: '#14b8a6' },
   disabled_workplace: { label: '장애인고용 전문 컨설턴트', color: '#f43f5e' },
   bizinfo: { label: '기업지원 전문 컨설턴트', color: '#f59e0b' },
+  real_estate: { label: '부동산 전문 컨설턴트', color: '#10b981' },
 };
 
 const SIZE = 1080; // 1:1 정사각형

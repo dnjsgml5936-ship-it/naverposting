@@ -34,6 +34,9 @@ const SEED_KEYWORDS: Record<PostDomain, Record<string, string[]>> = {
   bizinfo: {
     _all: ['기업마당', '중소기업지원사업', '정부지원금', '정책자금대출', '창업지원사업', '고용지원금'],
   },
+  real_estate: {
+    _all: ['부동산매매', '전세계약', '아파트시세', '꼬마빌딩', '부동산투자', '전월세', '재개발', '임장'],
+  },
 };
 
 export interface DiscoveredKeyword {
