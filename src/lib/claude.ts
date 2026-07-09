@@ -48,6 +48,41 @@ async function getLatestSonnetModel(apiKey: string): Promise<string> {
   return 'claude-sonnet-4-6';
 }
 
+// 블로그 글 생성 결과를 구조화된 JSON으로 강제하기 위한 Tool 정의
+const BLOG_POST_TOOL: Anthropic.Tool = {
+  name: 'submit_blog_post',
+  description: '작성한 네이버 블로그 글을 구조화된 형식으로 제출합니다. 모든 필드를 반드시 채워야 합니다.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string', description: '네이버 검색에 최적화된 블로그 제목 (30자 내외, 키워드 포함)' },
+      content: { type: 'string', description: '마크다운 형식의 본문 텍스트 (2,500~4,000자)' },
+      htmlContent: { type: 'string', description: '네이버 블로그에 바로 붙여넣을 수 있는 HTML (content의 HTML 버전)' },
+      tags: { type: 'array', items: { type: 'string' }, description: '해시태그 (최대 8개)' },
+      seoScore: { type: 'number', description: 'SEO 점수 (0~100)' },
+      tips: { type: 'array', items: { type: 'string' }, description: 'SEO 개선 팁 목록' },
+      imageCards: {
+        type: 'array',
+        description: '본문에 삽입되는 인포그래픽 카드 (5장)',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: '카드 제목 (15~25자)' },
+            subtitle: { type: 'string', description: '부제목/보충 설명 (15~30자)' },
+            body: { type: 'string', description: '핵심 정보 4~6줄, 줄바꿈(\\n)으로 구분' },
+            emoji: { type: 'string', description: '관련 이모지 1개' },
+            theme: { type: 'string', enum: ['blue', 'green', 'purple', 'orange', 'teal'] },
+            imagePrompt: { type: 'string', description: '영문 이미지 생성 프롬프트' },
+            overlayText: { type: 'string', description: '이미지 위 오버레이 핵심 문장 (20~35자)' },
+          },
+          required: ['title', 'subtitle', 'body', 'emoji', 'theme'],
+        },
+      },
+    },
+    required: ['title', 'content', 'htmlContent', 'tags', 'seoScore', 'tips', 'imageCards'],
+  },
+};
+
 export async function generateBlogPost(
   request: GenerateRequest
 ): Promise<GenerateResponse> {
@@ -64,70 +99,37 @@ export async function generateBlogPost(
 
   const model = await getLatestSonnetModel(apiKey);
 
-  // 스트리밍으로 응답 수집 (긴 요청 타임아웃 방지)
+  // 구조화 출력(Tool Use)으로 유효한 JSON을 보장 — 텍스트 파싱 실패 원천 제거
   const stream = client.messages.stream({
     model,
     max_tokens: 64000,
-    system: systemPrompt + '\n\n중요: 반드시 순수 JSON으로만 응답하세요. 코드블록(```)이나 마크다운 없이 { 로 시작하고 } 로 끝나는 JSON만 출력하세요.',
+    system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
+    tools: [BLOG_POST_TOOL],
+    tool_choice: { type: 'tool', name: BLOG_POST_TOOL.name },
   });
 
   const message = await stream.finalMessage();
 
-  const text =
-    message.content[0].type === 'text' ? message.content[0].text : '';
-
-  // stop_reason 확인 (잘린 응답)
+  // stop_reason 확인 (응답이 잘리면 tool_use 입력 JSON도 불완전해짐)
   if (message.stop_reason === 'max_tokens') {
     throw new Error('AI 응답이 너무 길어 잘렸습니다. 키워드를 더 구체적으로 입력하거나 다시 시도해주세요.');
   }
 
-  // JSON 추출 시도 함수
-  const tryParse = (str: string): GenerateResponse | null => {
-    try {
-      return JSON.parse(str);
-    } catch {
-      return null;
-    }
-  };
+  // tool_use 블록에서 이미 파싱된 구조화 결과 추출
+  const toolUse = message.content.find(
+    (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+  );
 
-  // 1차: 전체 텍스트를 JSON으로 파싱
-  const directParse = tryParse(text.trim());
-  if (directParse) return directParse;
-
-  // 2차: ```json ... ``` 블록 추출
-  const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-  if (jsonMatch) {
-    const parsed = tryParse(jsonMatch[1]);
-    if (parsed) return parsed;
+  if (toolUse && toolUse.input && typeof toolUse.input === 'object') {
+    return toolUse.input as GenerateResponse;
   }
 
-  // 3차: ``` ... ``` 블록 추출 (json 라벨 없는 경우)
-  const codeMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-  if (codeMatch) {
-    const parsed = tryParse(codeMatch[1]);
-    if (parsed) return parsed;
-  }
-
-  // 4차: 첫 번째 { 부터 마지막 } 까지 추출
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    const parsed = tryParse(text.slice(firstBrace, lastBrace + 1));
-    if (parsed) return parsed;
-  }
-
-  // 5차: 이스케이프 문제 수정 후 재시도
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    const raw = text.slice(firstBrace, lastBrace + 1);
-    // content 필드 내부의 줄바꿈/탭 이스케이프 처리
-    const fixed = raw.replace(/(?<=:\s*")([\s\S]*?)(?="(?:\s*[,}]))/g, (match) =>
-      match.replace(/\n/g, '\\n').replace(/\t/g, '\\t').replace(/\r/g, '\\r')
-    );
-    const parsed = tryParse(fixed);
-    if (parsed) return parsed;
-  }
-
-  console.error('JSON 추출 실패. AI 원본 응답:', text.substring(0, 500));
-  throw new Error('AI 응답에서 JSON을 추출할 수 없습니다. 다시 시도해주세요.');
+  console.error(
+    'tool_use 결과 없음. stop_reason:',
+    message.stop_reason,
+    '| content types:',
+    message.content.map((b) => b.type).join(', ')
+  );
+  throw new Error('AI가 구조화된 응답을 반환하지 못했습니다. 다시 시도해주세요.');
 }
