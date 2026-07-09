@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       status: 'draft',
       createdAt: now,
       updatedAt: now,
+      generationInput: body.generationInput,
     };
 
     const created = createPost(post);

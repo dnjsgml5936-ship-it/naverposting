@@ -126,6 +126,7 @@ function NewPostContent() {
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [lastRequest, setLastRequest] = useState<GenerateRequest | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedContent, setEditedContent] = useState('');
   const [editedHtml, setEditedHtml] = useState('');
@@ -335,6 +336,9 @@ function NewPostContent() {
         body.govProgram = bizinfoProgram;
       }
 
+      // 저장 시 함께 기록할 수 있도록 생성 입력값 보관
+      setLastRequest(body);
+
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -374,6 +378,7 @@ function NewPostContent() {
           domain,
           category: getCategory(),
           tags: result.tags,
+          generationInput: lastRequest || undefined,
         }),
       });
       const data = await res.json();

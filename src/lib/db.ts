@@ -33,11 +33,16 @@ function getDb() {
     )
   `);
 
-  // 기존 테이블에 domain 컬럼이 없으면 추가 (마이그레이션)
+  // 기존 테이블 마이그레이션
   const columns = db.prepare("PRAGMA table_info(posts)").all() as { name: string }[];
   const hasDomain = columns.some((c) => c.name === 'domain');
   if (!hasDomain) {
     db.exec("ALTER TABLE posts ADD COLUMN domain TEXT NOT NULL DEFAULT 'insurance'");
+  }
+  // 생성 입력값(GenerateRequest) 저장용 컬럼 — 과거 글은 NULL
+  const hasGenerationInput = columns.some((c) => c.name === 'generationInput');
+  if (!hasGenerationInput) {
+    db.exec("ALTER TABLE posts ADD COLUMN generationInput TEXT");
   }
 
   // 발굴 키워드 테이블
@@ -62,32 +67,43 @@ function getDb() {
   return db;
 }
 
+// DB 원본 row를 BlogPost로 변환 (tags / generationInput JSON 파싱)
+function rowToPost(row: BlogPost): BlogPost {
+  const raw = row as unknown as { generationInput?: string | null };
+  let generationInput: BlogPost['generationInput'];
+  if (raw.generationInput) {
+    try {
+      generationInput = JSON.parse(raw.generationInput);
+    } catch {
+      generationInput = undefined;
+    }
+  }
+  return {
+    ...row,
+    domain: row.domain || 'insurance',
+    tags: JSON.parse(row.tags as unknown as string),
+    generationInput,
+  };
+}
+
 export function getAllPosts(): BlogPost[] {
   const db = getDb();
   const rows = db.prepare('SELECT * FROM posts ORDER BY createdAt DESC').all() as BlogPost[];
-  return rows.map((r) => ({
-    ...r,
-    domain: r.domain || 'insurance',
-    tags: JSON.parse(r.tags as unknown as string),
-  }));
+  return rows.map(rowToPost);
 }
 
 export function getPost(id: string): BlogPost | undefined {
   const db = getDb();
   const row = db.prepare('SELECT * FROM posts WHERE id = ?').get(id) as BlogPost | undefined;
   if (!row) return undefined;
-  return {
-    ...row,
-    domain: row.domain || 'insurance',
-    tags: JSON.parse(row.tags as unknown as string),
-  };
+  return rowToPost(row);
 }
 
 export function createPost(post: BlogPost): BlogPost {
   const db = getDb();
   db.prepare(`
-    INSERT INTO posts (id, title, content, htmlContent, keyword, domain, category, tags, status, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO posts (id, title, content, htmlContent, keyword, domain, category, tags, status, createdAt, updatedAt, generationInput)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     post.id,
     post.title,
@@ -99,7 +115,8 @@ export function createPost(post: BlogPost): BlogPost {
     JSON.stringify(post.tags),
     post.status,
     post.createdAt,
-    post.updatedAt
+    post.updatedAt,
+    post.generationInput ? JSON.stringify(post.generationInput) : null
   );
   return post;
 }

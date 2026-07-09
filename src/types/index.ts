@@ -476,6 +476,8 @@ export interface BlogPost {
   createdAt: string;
   updatedAt: string;
   publishedAt?: string;
+  // 이 글을 생성할 때 입력했던 원본 요청(키워드·톤·맥락 등). 과거 글은 없을 수 있음
+  generationInput?: GenerateRequest;
 }
 
 export interface GenerateRequest {

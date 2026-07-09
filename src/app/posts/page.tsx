@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   BlogPost,
@@ -83,13 +83,94 @@ async function copyToClipboard(text: string, successMsg: string) {
   }
 }
 
+function sharePost(id: string) {
+  const url = `${window.location.origin}/share/${id}`;
+  copyToClipboard(url, `공유 링크가 복사되었습니다.\n${url}`);
+}
+
+const TONE_LABELS: Record<string, string> = {
+  warm: '따뜻한',
+  professional: '전문적인',
+  story: '스토리텔링',
+  casual: '캐주얼한',
+  authoritative: '권위있는',
+};
+
+// 저장된 생성 입력값(GenerateRequest)을 사람이 읽기 좋게 표시
+function GenerationInfo({ post }: { post: BlogPost }) {
+  const gi = post.generationInput;
+
+  const rows: { label: string; value: ReactNode }[] = [
+    { label: '키워드', value: post.keyword },
+    { label: '도메인', value: DOMAIN_LABELS[post.domain || 'insurance'] },
+    { label: '카테고리', value: getCategoryLabel(post) },
+  ];
+
+  if (gi) {
+    if (gi.tone) rows.push({ label: '말투/톤', value: TONE_LABELS[gi.tone] || gi.tone });
+    if (gi.targetAge) rows.push({ label: '타겟 연령', value: gi.targetAge });
+    if (gi.painPoint) rows.push({ label: '고민/니즈', value: gi.painPoint });
+    if (gi.additionalContext) rows.push({ label: '추가 맥락', value: gi.additionalContext });
+    if (gi.fundOrg) rows.push({ label: '정책자금 기관', value: gi.fundOrg });
+    if (gi.fundType) rows.push({ label: '정책자금 유형', value: gi.fundType });
+    if (gi.isoType) rows.push({ label: 'ISO 유형', value: gi.isoType });
+    if (gi.corpTopic) rows.push({ label: '법인컨설팅 주제', value: gi.corpTopic });
+    if (gi.smartFactoryTopic) rows.push({ label: '스마트공장 주제', value: gi.smartFactoryTopic });
+    if (gi.disabledWorkplaceTopic) rows.push({ label: '장애인표준사업장 주제', value: gi.disabledWorkplaceTopic });
+    if (gi.realEstateTopic) rows.push({ label: '부동산 주제', value: gi.realEstateTopic });
+    if (gi.govProgram?.pblancNm) rows.push({ label: '정부지원사업', value: gi.govProgram.pblancNm });
+    if (gi.referenceUrls && gi.referenceUrls.length > 0) {
+      rows.push({
+        label: '참고 URL',
+        value: (
+          <div className="flex flex-col gap-1">
+            {gi.referenceUrls.map((u, i) => (
+              <a key={i} href={u} target="_blank" rel="noreferrer" className="text-[var(--primary)] hover:underline break-all">{u}</a>
+            ))}
+          </div>
+        ),
+      });
+    }
+    if (gi.newsArticles && gi.newsArticles.length > 0) {
+      rows.push({
+        label: '참고 뉴스',
+        value: (
+          <div className="flex flex-col gap-1">
+            {gi.newsArticles.map((n, i) => (
+              <a key={i} href={n.link} target="_blank" rel="noreferrer" className="text-[var(--primary)] hover:underline break-all">{n.title.replace(/<[^>]+>/g, '')}</a>
+            ))}
+          </div>
+        ),
+      });
+    }
+  }
+
+  return (
+    <div>
+      {!gi && (
+        <div className="mb-4 p-3 bg-yellow-50 text-yellow-700 rounded-lg text-xs">
+          이 글은 생성 정보 저장 기능이 추가되기 전에 만들어져, 아래 기본 정보만 확인할 수 있습니다.
+        </div>
+      )}
+      <dl className="divide-y divide-[var(--border)] border border-[var(--border)] rounded-lg overflow-hidden">
+        {rows.map((row, i) => (
+          <div key={i} className="flex gap-4 px-4 py-3">
+            <dt className="w-32 flex-shrink-0 text-xs font-medium text-[var(--muted)] pt-0.5">{row.label}</dt>
+            <dd className="flex-1 text-sm whitespace-pre-wrap break-words">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export default function PostsPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'draft' | 'published'>('all');
   const [domainFilter, setDomainFilter] = useState<'all' | PostDomain>('all');
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
-  const [detailTab, setDetailTab] = useState<'preview' | 'html' | 'markdown'>('preview');
+  const [detailTab, setDetailTab] = useState<'preview' | 'html' | 'markdown' | 'info'>('preview');
 
   useEffect(() => {
     fetch('/api/posts')
@@ -178,6 +259,7 @@ export default function PostsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => sharePost(post.id)} className="px-3 py-2 text-xs font-medium bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors">공유</button>
                 <button onClick={() => copyToClipboard(post.content, '텍스트가 복사되었습니다.')} className="px-3 py-2 text-xs font-medium bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">텍스트</button>
                 <button onClick={() => copyToClipboard(post.htmlContent, 'HTML이 복사되었습니다.')} className="px-3 py-2 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">HTML</button>
                 {post.status === 'draft' && (<button onClick={() => handlePublishSelenium(post)} className="px-3 py-2 text-xs font-medium bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">자동발행</button>)}
@@ -230,7 +312,7 @@ export default function PostsPage() {
             {/* Tabs + Actions */}
             <div className="flex items-center justify-between px-6 border-b border-[var(--border)] flex-shrink-0">
               <div className="flex">
-                {(['preview', 'html', 'markdown'] as const).map((tab) => (
+                {(['preview', 'html', 'markdown', 'info'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setDetailTab(tab)}
@@ -240,11 +322,17 @@ export default function PostsPage() {
                         : 'text-[var(--muted)] hover:text-[var(--foreground)]'
                     }`}
                   >
-                    {tab === 'preview' ? '미리보기' : tab === 'html' ? 'HTML' : '마크다운'}
+                    {tab === 'preview' ? '미리보기' : tab === 'html' ? 'HTML' : tab === 'markdown' ? '마크다운' : '생성 정보'}
                   </button>
                 ))}
               </div>
               <div className="flex gap-2 py-2">
+                <button
+                  onClick={() => sharePost(selectedPost.id)}
+                  className="px-3 py-1.5 text-xs font-medium bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors"
+                >
+                  공유 링크 복사
+                </button>
                 <button
                   onClick={() => copyToClipboard(selectedPost.content, '전체 텍스트가 복사되었습니다.')}
                   className="px-3 py-1.5 text-xs font-medium bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -275,8 +363,10 @@ export default function PostsPage() {
                 <div className="blog-preview prose max-w-none" dangerouslySetInnerHTML={{ __html: selectedPost.htmlContent }} />
               ) : detailTab === 'html' ? (
                 <pre className="text-xs font-mono bg-gray-50 p-4 rounded-lg border border-[var(--border)] whitespace-pre-wrap break-all">{selectedPost.htmlContent}</pre>
-              ) : (
+              ) : detailTab === 'markdown' ? (
                 <pre className="text-sm bg-gray-50 p-4 rounded-lg border border-[var(--border)] whitespace-pre-wrap leading-relaxed">{selectedPost.content}</pre>
+              ) : (
+                <GenerationInfo post={selectedPost} />
               )}
             </div>
           </div>
