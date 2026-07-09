@@ -44,6 +44,7 @@ next-env.d.ts
 /data/
 
 # selenium
+selenium/venv/
 selenium/naver_cookies.json
 selenium/__pycache__/
 *.pyc
