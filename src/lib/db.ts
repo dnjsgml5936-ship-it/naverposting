@@ -6,9 +6,26 @@ import { BlogPost } from '@/types';
 const DB_DIR = process.env.DB_PATH || path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DB_DIR, 'blog.db');
 
+let dbPathLogged = false;
+
 function getDb() {
   const fs = require('fs');
   const dir = path.dirname(DB_PATH);
+
+  // 부팅 후 최초 1회: DB 경로와 파일 존재 여부를 로그로 남겨 볼륨 영속성 진단
+  if (!dbPathLogged) {
+    dbPathLogged = true;
+    const existed = fs.existsSync(DB_PATH);
+    console.log(
+      `[DB] path=${DB_PATH} | file_exists_at_boot=${existed} | DB_PATH_env=${process.env.DB_PATH || '(unset→/app/data)'}`
+    );
+    if (!existed) {
+      console.warn(
+        '[DB] 경고: 부팅 시 DB 파일이 없습니다. 영구 볼륨이 이 경로에 마운트돼 있지 않으면 재배포마다 데이터가 초기화됩니다.'
+      );
+    }
+  }
+
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
