@@ -124,9 +124,11 @@ export default function SettingsPage() {
               </label>
               <input
                 type="text"
+                name="naver-id-field"
                 value={naverId}
                 onChange={(e) => setNaverId(e.target.value)}
                 placeholder="네이버 아이디"
+                autoComplete="off"
                 className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
                 disabled={loggingIn}
               />
@@ -138,9 +140,11 @@ export default function SettingsPage() {
               </label>
               <input
                 type="password"
+                name="naver-pw-field"
                 value={naverPw}
                 onChange={(e) => setNaverPw(e.target.value)}
                 placeholder="비밀번호"
+                autoComplete="new-password"
                 className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
                 disabled={loggingIn}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}

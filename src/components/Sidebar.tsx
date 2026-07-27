@@ -24,6 +24,13 @@ export default function Sidebar({
   const pathname = usePathname();
   const items = isAdmin ? [...navItems, adminItem] : navItems;
 
+  // 현재 경로와 일치하는 메뉴 중 "가장 긴 경로" 하나만 활성화
+  // (예: /keywords/discovered 에서 /keywords 가 함께 켜지는 문제 방지)
+  const activeHref = items
+    .map((i) => i.href)
+    .filter((href) => pathname === href || pathname.startsWith(href + '/'))
+    .sort((a, b) => b.length - a.length)[0];
+
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[var(--border)] flex flex-col z-10">
       {/* Logo */}
@@ -40,10 +47,7 @@ export default function Sidebar({
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
           {items.map((item) => {
-            const isActive =
-              item.href === '/'
-                ? pathname === '/'
-                : pathname.startsWith(item.href);
+            const isActive = item.href === activeHref;
 
             return (
               <li key={item.href}>
@@ -81,7 +85,7 @@ export default function Sidebar({
         )}
         <div className="px-4 py-2 bg-blue-50 rounded-lg">
           <p className="text-xs font-medium text-[var(--primary)]">AIEO 최적화</p>
-          <p className="text-xs text-[var(--muted)] mt-0.5">네이버 홈판 상위노출</p>
+          <p className="text-xs text-[var(--muted)] mt-0.5">네이버 상위노출</p>
         </div>
       </div>
     </aside>
