@@ -62,6 +62,26 @@ function getDb() {
   const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000).toISOString();
   db.prepare('DELETE FROM sessions WHERE createdAt < ?').run(cutoff);
 
+  // 관리자 부트스트랩(계정 잠김 복구용): 환경변수가 설정돼 있으면
+  // 해당 아이디를 관리자·승인 상태로 생성하거나 비밀번호를 재설정한다.
+  // 복구 후에는 보안을 위해 두 환경변수를 삭제할 것.
+  const bootUser = process.env.ADMIN_BOOTSTRAP_USERNAME;
+  const bootPass = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  if (bootUser && bootPass) {
+    const crypto = require('crypto');
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.scryptSync(bootPass, salt, 64).toString('hex');
+    const passwordHash = `${salt}:${hash}`;
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(bootUser) as { id: string } | undefined;
+    if (existing) {
+      db.prepare("UPDATE users SET passwordHash = ?, role = 'admin', status = 'approved' WHERE username = ?")
+        .run(passwordHash, bootUser);
+    } else {
+      db.prepare('INSERT INTO users (id, username, passwordHash, role, status, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(crypto.randomUUID(), bootUser, passwordHash, 'admin', 'approved', new Date().toISOString());
+    }
+  }
+
   // AI 생성 로그 (저장 여부와 무관하게 모든 생성 호출 기록 — API 사용량 추적)
   db.exec(`
     CREATE TABLE IF NOT EXISTS generation_logs (
