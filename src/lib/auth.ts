@@ -3,7 +3,9 @@ import { cookies } from 'next/headers';
 import { getSessionUser, UserRow } from './db';
 
 export const SESSION_COOKIE = 'blog_session';
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30일
+// 세션 수명: 기본 24시간. SESSION_TTL_HOURS 환경변수로 조정 가능(보안 목적으로 짧게 유지)
+const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS) || 24;
+const SESSION_TTL_MS = 1000 * 60 * 60 * SESSION_TTL_HOURS;
 
 export type SessionUser = Omit<UserRow, 'passwordHash'>;
 

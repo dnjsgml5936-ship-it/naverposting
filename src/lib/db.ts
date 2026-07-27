@@ -56,6 +56,12 @@ function getDb() {
     )
   `);
 
+  // 세션 수명 정책 적용: 새 TTL보다 오래 전에 생성된 세션은 즉시 정리
+  // (과거 30일짜리 세션이 정책 변경 후에도 살아있는 것을 방지)
+  const ttlHours = Number(process.env.SESSION_TTL_HOURS) || 24;
+  const cutoff = new Date(Date.now() - ttlHours * 60 * 60 * 1000).toISOString();
+  db.prepare('DELETE FROM sessions WHERE createdAt < ?').run(cutoff);
+
   // AI 생성 로그 (저장 여부와 무관하게 모든 생성 호출 기록 — API 사용량 추적)
   db.exec(`
     CREATE TABLE IF NOT EXISTS generation_logs (
@@ -332,6 +338,16 @@ export function getAllUsers(): Omit<UserRow, 'passwordHash'>[] {
 export function setUserStatus(id: string, status: UserRow['status']): boolean {
   const db = getDb();
   return db.prepare('UPDATE users SET status = ? WHERE id = ?').run(status, id).changes > 0;
+}
+
+export function setUserRole(id: string, role: UserRow['role']): boolean {
+  const db = getDb();
+  return db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id).changes > 0;
+}
+
+export function countAdmins(): number {
+  const db = getDb();
+  return (db.prepare("SELECT COUNT(*) as cnt FROM users WHERE role = 'admin'").get() as { cnt: number }).cnt;
 }
 
 // 로그인 도입 이전 글(userId NULL)을 관리자 계정으로 귀속

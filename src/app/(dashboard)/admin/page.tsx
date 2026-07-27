@@ -15,7 +15,7 @@ export default async function AdminPage() {
         <h1 className="text-2xl font-bold">관리자</h1>
         <p className="text-[var(--muted)] text-sm mt-1">사용자 승인 및 API 사용량 관리</p>
       </div>
-      <AdminDashboard />
+      <AdminDashboard currentUserId={user.id} />
     </div>
   );
 }

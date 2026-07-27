@@ -31,7 +31,7 @@ const STATUS_STYLE: Record<string, string> = {
   rejected: 'bg-red-50 text-red-500',
 };
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ currentUserId }: { currentUserId: string }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<UsageStat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,12 +48,18 @@ export default function AdminDashboard() {
     ]).finally(() => setLoading(false));
   }, [loadUsers]);
 
-  async function act(userId: string, action: 'approve' | 'reject') {
-    await fetch('/api/admin/users', {
+  async function act(userId: string, action: 'approve' | 'reject' | 'promote' | 'demote') {
+    if (action === 'promote' && !confirm('이 사용자에게 관리자 권한을 부여할까요?')) return;
+    if (action === 'demote' && !confirm('이 사용자의 관리자 권한을 회수할까요?')) return;
+    const res = await fetch('/api/admin/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, action }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || '요청에 실패했습니다.');
+    }
     await loadUsers();
   }
 
@@ -133,12 +139,19 @@ export default function AdminDashboard() {
                     <td className="px-4 py-3 text-right">{fmt(t?.generations || 0)}</td>
                     <td className="px-4 py-3 text-right">{fmt(t?.savedPosts || 0)}</td>
                     <td className="px-4 py-3">
-                      {u.role !== 'admin' && (
-                        <div className="flex gap-1.5">
-                          {u.status !== 'approved' && <button onClick={() => act(u.id, 'approve')} className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded hover:bg-green-100">승인</button>}
-                          {u.status !== 'rejected' && <button onClick={() => act(u.id, 'reject')} className="px-2 py-1 text-xs bg-red-50 text-red-500 rounded hover:bg-red-100">거절</button>}
-                        </div>
-                      )}
+                      <div className="flex gap-1.5 flex-wrap">
+                        {u.role !== 'admin' && (
+                          <>
+                            {u.status !== 'approved' && <button onClick={() => act(u.id, 'approve')} className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded hover:bg-green-100">승인</button>}
+                            {u.status !== 'rejected' && <button onClick={() => act(u.id, 'reject')} className="px-2 py-1 text-xs bg-red-50 text-red-500 rounded hover:bg-red-100">거절</button>}
+                            <button onClick={() => act(u.id, 'promote')} className="px-2 py-1 text-xs bg-indigo-50 text-indigo-600 rounded hover:bg-indigo-100">관리자 지정</button>
+                          </>
+                        )}
+                        {u.role === 'admin' && u.id !== currentUserId && (
+                          <button onClick={() => act(u.id, 'demote')} className="px-2 py-1 text-xs bg-amber-50 text-amber-600 rounded hover:bg-amber-100">관리자 해제</button>
+                        )}
+                        {u.id === currentUserId && <span className="text-xs text-[var(--muted)]">본인</span>}
+                      </div>
                     </td>
                   </tr>
                 );
