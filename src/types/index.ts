@@ -396,6 +396,9 @@ export const REAL_ESTATE_CATEGORIES: RealEstateCategory[] = [
       { key: 're_villa_listing', label: '빌라/다세대 매물', description: '빌라, 다세대, 다가구 매물 소개 및 장단점 분석' },
       { key: 're_officetel_listing', label: '오피스텔 매물', description: '오피스텔 매매/임대 매물 소개 및 수익률 분석' },
       { key: 're_luxury_listing', label: '고급 주거 매물', description: '고급 아파트, 주상복합, 타운하우스 등 프리미엄 매물 소개' },
+      { key: 're_building_listing', label: '빌딩/상가 매물', description: '빌딩, 상가, 상업용 건물 매물 소개 및 임대수익률 분석' },
+      { key: 're_factory_listing', label: '공장/창고 매물', description: '공장, 창고, 지식산업센터 등 산업용 부동산 매물 소개' },
+      { key: 're_land_listing', label: '토지 매물', description: '대지, 전답, 임야 등 토지 매물 소개 및 개발 가치 분석' },
     ],
   },
   {

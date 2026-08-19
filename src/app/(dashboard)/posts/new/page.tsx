@@ -995,6 +995,16 @@ function NewPostContent() {
             {/* Additional Context */}
             {(() => {
               const isReListing = domain === 'real_estate' && realEstateTopic.endsWith('_listing');
+              const listingPlaceholders: Record<string, string> = {
+                re_building_listing:
+                  '실제 매물 정보를 입력하세요 (입력한 정보 중심으로 작성됩니다)\n예) 주소/건물명: OO동 대로변 빌딩\n거래유형/가격: 매매 45억 / (임대 시) 보증금·월세\n대지/연면적: 320㎡ / 1,450㎡, 지상5층·지하1층\n용도지역: 일반상업지역\n임차현황·수익률: 1~2층 임대중, 연 수익률 4.2%\n특징: 역세권 대로변, 엘리베이터, 주차 8대',
+                re_factory_listing:
+                  '실제 매물 정보를 입력하세요 (입력한 정보 중심으로 작성됩니다)\n예) 주소: OO산업단지 내\n거래유형/가격: 매매 28억 / 임대 조건\n대지/건축면적: 990㎡ / 660㎡, 층고 8m\n전력: 100kW, 진입도로: 대형차 진입 가능\n용도지역/인허가: 일반공업지역, 제조업 가능\n특징: IC 5분, 지게차·크레인 설비',
+                re_land_listing:
+                  '실제 매물 정보를 입력하세요 (입력한 정보 중심으로 작성됩니다)\n예) 소재지: OO군 OO리\n거래유형/가격: 매매 6억 / 평단가 200만원\n지목/용도지역: 전 / 계획관리지역\n면적: 990㎡ (약 300평)\n도로접함: 4m 도로 접함, 공시지가 xx\n특징: 건폐율40%·용적률100%, 도로변, 개발 호재',
+                _default:
+                  '실제 매물 정보를 입력하세요 (입력한 정보 중심으로 작성됩니다)\n예) 단지명/주소: OO아파트 3단지\n거래유형/가격: 매매 9억 8천\n전용/공급면적: 84.9㎡ / 112㎡\n층/향: 12층/총20층, 남향\n방/욕실: 3/2, 준공 2018년, 관리비 약 25만원\n특징: 초역세권(도보5분), 초등학교 인접, 리모델링 완료',
+              };
               return (
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -1008,7 +1018,7 @@ function NewPostContent() {
                     onChange={(e) => setAdditionalContext(e.target.value)}
                     placeholder={
                       isReListing
-                        ? '실제 매물 정보를 입력하세요 (입력한 정보 중심으로 작성됩니다)\n예) 단지명/주소: OO아파트 3단지\n거래유형/가격: 매매 9억 8천\n전용/공급면적: 84.9㎡ / 112㎡\n층/향: 12층/총20층, 남향\n방/욕실: 3/2, 준공 2018년, 관리비 약 25만원\n특징: 초역세권(도보5분), 초등학교 인접, 리모델링 완료'
+                        ? (listingPlaceholders[realEstateTopic] || listingPlaceholders._default)
                         : '특별히 강조하고 싶은 내용, 최근 트렌드, 정책 변경 사항 등'
                     }
                     rows={isReListing ? 7 : 3}
