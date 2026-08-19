@@ -993,18 +993,30 @@ function NewPostContent() {
             </div>
 
             {/* Additional Context */}
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                추가 맥락 <span className="text-xs text-[var(--muted)]">(선택)</span>
-              </label>
-              <textarea
-                value={additionalContext}
-                onChange={(e) => setAdditionalContext(e.target.value)}
-                placeholder="특별히 강조하고 싶은 내용, 최근 트렌드, 정책 변경 사항 등"
-                rows={3}
-                className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
-              />
-            </div>
+            {(() => {
+              const isReListing = domain === 'real_estate' && realEstateTopic.endsWith('_listing');
+              return (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {isReListing ? '매물 정보' : '추가 맥락'}{' '}
+                    <span className="text-xs text-[var(--muted)]">
+                      {isReListing ? '(입력 권장 — 이 정보 중심으로 매물 소개글이 작성됩니다)' : '(선택)'}
+                    </span>
+                  </label>
+                  <textarea
+                    value={additionalContext}
+                    onChange={(e) => setAdditionalContext(e.target.value)}
+                    placeholder={
+                      isReListing
+                        ? '실제 매물 정보를 입력하세요 (입력한 정보 중심으로 작성됩니다)\n예) 단지명/주소: OO아파트 3단지\n거래유형/가격: 매매 9억 8천\n전용/공급면적: 84.9㎡ / 112㎡\n층/향: 12층/총20층, 남향\n방/욕실: 3/2, 준공 2018년, 관리비 약 25만원\n특징: 초역세권(도보5분), 초등학교 인접, 리모델링 완료'
+                        : '특별히 강조하고 싶은 내용, 최근 트렌드, 정책 변경 사항 등'
+                    }
+                    rows={isReListing ? 7 : 3}
+                    className="w-full px-4 py-3 rounded-lg border border-[var(--border)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
+                  />
+                </div>
+              );
+            })()}
 
             {error && (<div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>)}
 
